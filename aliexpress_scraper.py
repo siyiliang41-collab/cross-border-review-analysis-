@@ -337,15 +337,29 @@ def main():
         "label3", "labelValue3",
     ]
 
-    with open(out, "w", newline="", encoding="utf-8-sig") as f:
+    # 判断是否续爬：如果文件已存在且有内容，追加模式 + 跳过已完成的商品
+    file_exists = os.path.exists(out) and os.path.getsize(out) > 200  # 200字节=header
+    mode = "a" if file_exists else "w"
+
+    # 如果文件已存在，读取已采集的商品ID，避免重复爬取
+    done_products = set()
+    if file_exists:
+        with open(out, "r", encoding="utf-8-sig") as existing:
+            reader = csv.DictReader(existing)
+            for row in reader:
+                done_products.add(row.get("productId", ""))
+        print(f"[i] 检测到已有数据文件，已采集 {len(done_products)} 个商品，将跳过")
+
+    with open(out, mode, newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
-        writer.writeheader()
+        if not file_exists:
+            writer.writeheader()
         total = sum(
-            scraper.scrape_product(pid, writer) for pid in PRODUCT_IDS
+            scraper.scrape_product(pid, writer) for pid in PRODUCT_IDS if pid not in done_products
         )
 
     print(f"\n{'=' * 60}")
-    print(f"  全部完成！共采集 {total} 条评论")
+    print(f"  全部完成！本次采集 {total} 条评论（不含续爬数据）")
     print(f"  输出文件: {out}")
     print(f"{'=' * 60}")
 
