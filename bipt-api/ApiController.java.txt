@@ -1,0 +1,150 @@
+package com.bipt.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
+
+@RestController
+public class ApiController {
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    // ==== 基础接口 ====
+    @GetMapping("/api/overview")
+    public Map<String, Object> overview() {
+        return jdbc.queryForMap("SELECT COUNT(*) AS totalReviews, ROUND(AVG(avg_star),2) AS avgStar FROM ads_product_rating");
+    }
+
+    @GetMapping("/api/products/rating")
+    public List<Map<String, Object>> products() {
+        return jdbc.queryForList("SELECT product_id, total_reviews, avg_star FROM ads_product_rating ORDER BY avg_star DESC");
+    }
+
+    @GetMapping("/api/countries/top15")
+    public List<Map<String, Object>> countries() {
+        return jdbc.queryForList("SELECT buyer_country, cnt AS review_count, avg_star FROM ads_country_top15 ORDER BY avg_star DESC");
+    }
+
+    @GetMapping("/api/trend/monthly")
+    public List<Map<String, Object>> monthly() {
+        return jdbc.queryForList("SELECT m AS month, cnt AS review_count, avg AS avg_star FROM ads_monthly_trend ORDER BY m");
+    }
+
+    @GetMapping("/api/logistics")
+    public List<Map<String, Object>> logistics() {
+        return jdbc.queryForList("SELECT logistics, cnt AS review_count, avg AS avg_star FROM ads_logistics ORDER BY avg_star DESC");
+    }
+
+    @GetMapping("/api/image/followup")
+    public List<Map<String, Object>> imageFollowup() {
+        return jdbc.queryForList("SELECT has_image, has_follow_up, cnt AS review_count, avg AS avg_star FROM ads_image_followup");
+    }
+
+    @GetMapping("/api/sku/analysis")
+    public List<Map<String, Object>> sku() {
+        return jdbc.queryForList("SELECT product_id, sku_info, cnt AS review_count, avg AS avg_star FROM ads_sku_analysis LIMIT 50");
+    }
+
+    @GetMapping("/api/sentiment/product")
+    public List<Map<String, Object>> sentimentProduct() {
+        return jdbc.queryForList("SELECT product_id, total, avg_sentiment, pos_cnt, neu_cnt, neg_cnt, pos_rate FROM ads_sentiment_product ORDER BY pos_rate DESC");
+    }
+
+    @GetMapping("/api/scorecard")
+    public List<Map<String, Object>> scorecard() {
+        return jdbc.queryForList("SELECT product_id, star_score, sentiment_pos_rate, avg_sentiment, total_reviews, recommendation_score FROM ads_product_scorecard ORDER BY recommendation_score DESC");
+    }
+
+    // ==== 新增：国家列表（下拉框） ====
+    @GetMapping("/api/countries/list")
+    public List<String> countryList() {
+        return jdbc.queryForList("SELECT DISTINCT buyer_country FROM ads_country_top15", String.class);
+    }
+
+    // ==== 新增：国家×商品矩阵（热力图） ====
+    @GetMapping("/api/matrix")
+    public List<Map<String, Object>> matrix() {
+        return jdbc.queryForList("SELECT buyer_country, product_id, review_count, avg_star, avg_sentiment FROM ads_country_product_matrix ORDER BY review_count DESC");
+    }
+
+    // ==== 新增：产品特征分析（ABSA） ====
+    @GetMapping("/api/feature/{productId}")
+    public List<Map<String, Object>> feature(@PathVariable String productId) {
+        return jdbc.queryForList(
+            "SELECT feature, score, sentiment_flag, SUM(cnt) AS cnt FROM ads_feature_country_product WHERE product_id=? GROUP BY feature, score, sentiment_flag ORDER BY cnt DESC LIMIT 20",
+            productId
+        );
+    }
+
+    // ==== 新增：分国家产品特征 ====
+    @GetMapping("/api/feature/{productId}/country/{code}")
+    public List<Map<String, Object>> featureByCountry(@PathVariable String productId, @PathVariable String code) {
+        return jdbc.queryForList(
+            "SELECT feature, score, sentiment_flag, SUM(cnt) AS cnt FROM ads_feature_country_product WHERE product_id=? AND buyer_country=? GROUP BY feature, score, sentiment_flag ORDER BY cnt DESC LIMIT 15",
+            productId, code
+        );
+    }
+
+    // ==== 新增：分国家SKU偏好 ====
+    @GetMapping("/api/sku/{productId}/country/{code}")
+    public List<Map<String, Object>> skuByCountry(@PathVariable String productId, @PathVariable String code) {
+        return jdbc.queryForList(
+            "SELECT sku_info, review_count, avg_star FROM ads_sku_country_pref WHERE product_id=? AND buyer_country=? ORDER BY review_count DESC LIMIT 8",
+            productId, code
+        );
+    }
+
+    // ==== 新增：时间趋势（分国家×商品） ====
+    @GetMapping("/api/trend/{productId}/country/{code}")
+    public List<Map<String, Object>> trendByCountry(@PathVariable String productId, @PathVariable String code) {
+        return jdbc.queryForList(
+            "SELECT month, review_count, avg_star FROM ads_country_monthly_trend WHERE product_id=? AND buyer_country=? ORDER BY month",
+            productId, code
+        );
+    }
+
+    // ==== 核心：决策建议面板 ====
+    @GetMapping("/api/decision/{productId}")
+    public Map<String, Object> decision(@PathVariable String productId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // 1. 选品排名
+        jdbc.queryForList("SELECT product_id, recommendation_score FROM ads_product_scorecard ORDER BY recommendation_score DESC").forEach(row -> {
+            if (row.get("product_id").equals(productId)) result.put("score", row.get("recommendation_score"));
+        });
+
+        // 2. 最佳市场（TOP3国家）
+        result.put("bestMarkets", jdbc.queryForList(
+            "SELECT buyer_country, avg_star, review_count FROM ads_country_product_matrix WHERE product_id=? ORDER BY avg_star DESC LIMIT 3", productId
+        ));
+
+        // 3. 核心优势（正面特征TOP3）
+        result.put("strengths", jdbc.queryForList(
+            "SELECT feature, SUM(cnt) AS cnt FROM ads_feature_country_product WHERE product_id=? AND sentiment_flag='positive' GROUP BY feature ORDER BY cnt DESC LIMIT 3", productId
+        ));
+
+        // 4. 主要痛点（负面特征TOP3）
+        result.put("weaknesses", jdbc.queryForList(
+            "SELECT feature, SUM(cnt) AS cnt FROM ads_feature_country_product WHERE product_id=? AND sentiment_flag='negative' GROUP BY feature ORDER BY cnt DESC LIMIT 3", productId
+        ));
+
+        // 5. 推荐SKU
+        result.put("bestSku", jdbc.queryForList(
+            "SELECT sku_info, review_count, avg_star FROM ads_sku_country_pref WHERE product_id=? ORDER BY review_count DESC LIMIT 3", productId
+        ));
+
+        // 6. 推荐物流
+        result.put("bestLogistics", jdbc.queryForList(
+            "SELECT logistics, cnt AS review_count, avg AS avg_star FROM ads_logistics ORDER BY avg DESC LIMIT 3"
+        ));
+
+        // 7. 好评率
+        result.put("sentiment", jdbc.queryForMap(
+            "SELECT pos_rate, avg_sentiment, total FROM ads_sentiment_product WHERE product_id=?", productId
+        ));
+
+        return result;
+    }
+}
