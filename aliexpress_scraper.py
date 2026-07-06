@@ -15,6 +15,7 @@ import json
 import csv
 import os
 import re
+import random
 
 # ============================================================
 # 配置区 - 按需修改
@@ -36,10 +37,10 @@ PRODUCT_IDS = [
 
 # 从浏览器复制 _m_h5_tk 的值
 # 操作：F12 -> Application -> Cookies -> aliexpress.com -> 搜索 _m_h5_tk -> 复制整段
-MANUAL_COOKIE_M_H5_TK = "fde2a9ecfe906a5661cfdd898898052b_1782126115179"
+MANUAL_COOKIE_M_H5_TK = "c7f8526f4f2f77f096280b661ffdf9d8_1783321038066"
 
-# 每个商品最多爬取页数，每页20条评论
-MAX_PAGES_PER_PRODUCT = 200
+# 每个商品最多爬取页数，0表示不限制（采集全量）
+MAX_PAGES_PER_PRODUCT = 0
 PAGE_SIZE = 20
 
 # 代理设置，直连无需代理时把 USE_PROXY 改为 False
@@ -254,22 +255,30 @@ class AliExpressReviewScraper:
         max_pages = MAX_PAGES_PER_PRODUCT
         page = 1
         count = 0
+        retry_count = 0
+        MAX_RETRY = 3  # 同一页最多重试次数
 
-        while page <= max_pages:
+        while True:
+            # 如果设置了页数上限且已达到，停止采集
+            if MAX_PAGES_PER_PRODUCT > 0 and page > max_pages:
+                break
+
             try:
                 print(f"  [>] 第 {page} 页 ...", end=" ")
                 data = self.fetch_reviews(product_id, seller_seq, page)
 
-                # 首页打印统计概览
+                # 首页打印统计概览，并根据真实总页数确定采集上限
                 if page == 1:
-                    max_pages = min(
-                        data.get("totalPage", 1), MAX_PAGES_PER_PRODUCT
-                    )
+                    total_page = data.get("totalPage", 1)
+                    if MAX_PAGES_PER_PRODUCT > 0:
+                        max_pages = min(total_page, MAX_PAGES_PER_PRODUCT)
+                    else:
+                        max_pages = total_page
                     stats = data.get("productEvaluationStatistic", {})
                     print(
                         f"\n  [i] 总评论: {data.get('totalNum', 0)} 条, "
                         f"均分: {stats.get('evarageStar', '?')}, "
-                        f"总页数: {data.get('totalPage', '?')}"
+                        f"总页数: {total_page}"
                     )
                     print(f"  [>] 第 {page} 页 ...", end=" ")
 
@@ -287,13 +296,19 @@ class AliExpressReviewScraper:
                     break
 
                 page += 1
-                # 礼貌延时，避免触发频率限制
-                time.sleep(1.5)
+                retry_count = 0  # 成功则重置重试计数
+                # 随机延时 1.5~3.0 秒，降低被识别为爬虫的概率
+                time.sleep(random.uniform(1.5, 3.0))
 
             except Exception as e:
                 print(f"失败: {e}")
-                print("  [!] 等待 5 秒后重试本页 ...")
-                time.sleep(5)
+                retry_count += 1
+                if retry_count > MAX_RETRY:
+                    print(f"  [!] 已重试 {MAX_RETRY} 次仍然失败，跳过本商品剩余页面")
+                    break
+                wait = 5 * retry_count
+                print(f"  [!] 等待 {wait} 秒后第 {retry_count}/{MAX_RETRY} 次重试 ...")
+                time.sleep(wait)
 
         print(f"[+] 商品 {product_id} 采集完成，共 {count} 条评论")
         return count
