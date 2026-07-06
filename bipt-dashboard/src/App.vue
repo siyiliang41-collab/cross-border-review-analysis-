@@ -43,12 +43,14 @@ function cnSku(s){
   return r.length>22?r.substring(0,21)+'..':r
 }
 
-// 提取：产品特征正/负面判断（统一逻辑，5处复用）
+// 提取：产品特征正/负面判断（统一逻辑，5处复用，score字段兼容首尾空格）
 function isPositiveFeature(f) {
-  return f.sentiment_flag === 'positive' || f.score === 'Fast' || f.score === 'Good' || f.score === 'Great' || f.score === 'Fits ok ' || f.score === 'Fits ok'
+  const s = (f.score || '').trim()
+  return f.sentiment_flag === 'positive' || s === 'Fast' || s === 'Good' || s === 'Great' || s === 'Fits ok'
 }
 function isNegativeFeature(f) {
-  return f.sentiment_flag === 'negative' || f.score === 'Poor' || f.score === 'Difficult'
+  const s = (f.score || '').trim()
+  return f.sentiment_flag === 'negative' || s === 'Poor' || s === 'Difficult'
 }
 
 // axios 统一错误处理：接口异常时至少打印日志，避免前端静默白屏
@@ -125,19 +127,27 @@ function renderCharts(){
     // 选品排名柱状
     cc('ch4',{tooltip:{trigger:'axis'},grid:{left:100,right:60,top:10,bottom:20},xAxis:{type:'value',name:'推荐指数',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:d.scorecard.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#333',fontSize:13,fontWeight:'bold'}},series:[{type:'bar',data:d.scorecard.map(s=>Math.round(s.recommendation_score*10)/10),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#2979ff'},{offset:1,color:'#82b1ff'}]),borderRadius:[0,4,4,0]},label:{show:true,position:'right',color:'#333',fontSize:13,fontWeight:'bold',formatter:'{c}分'},markLine:{symbol:'none',data:[{type:'average',label:{show:true,color:'#999',fontSize:10,position:'start',formatter:'均线{c}'}}],lineStyle:{color:'#bbb',type:'dashed'}}}]})
 
-    // 特征ABSA（数据概览Tab）
-    const fp=d.feats.filter(isPositiveFeature)
-    const fn=d.feats.filter(isNegativeFeature)
-    const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
-    cc('ch5',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
+    // 特征ABSA（数据概览Tab）— 有数据时渲染，无数据时显示占位提示
+    if(d.feats&&d.feats.length>0){
+      const fp=d.feats.filter(isPositiveFeature)
+      const fn=d.feats.filter(isNegativeFeature)
+      const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
+      cc('ch5',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
+    }else{
+      setTimeout(()=>{const el=document.getElementById('ch5');if(el)el.innerHTML='<div style=\"display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:14px\">该商品暂无特征分析数据</div>'},150)
+    }
   }
 
   if(m==='sentiment'){
-    // 特征ABSA（情感分析Tab）
-    const fp=d.feats.filter(isPositiveFeature)
-    const fn=d.feats.filter(isNegativeFeature)
-    const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
-    cc('ch-s2',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
+    // 特征ABSA（情感分析Tab）— 有数据时渲染，无数据时显示占位提示
+    if(d.feats&&d.feats.length>0){
+      const fp=d.feats.filter(isPositiveFeature)
+      const fn=d.feats.filter(isNegativeFeature)
+      const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
+      cc('ch-s2',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
+    }else{
+      setTimeout(()=>{const el=document.getElementById('ch-s2');if(el)el.innerHTML='<div style=\"display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:14px\">该商品暂无特征分析数据</div>'},150)
+    }
     const sp=d.sentiment
     cc('ch-s1',{tooltip:{trigger:'axis'},legend:{data:['正面','中性','负面'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:55,right:30,top:30,bottom:30},xAxis:{type:'category',data:sp.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#889',fontSize:11,rotate:15}},yAxis:{type:'value',name:'%',axisLabel:{color:'#889',fontSize:11}},series:[{name:'正面',type:'bar',stack:'t',data:sp.map(s=>s.pos_rate),itemStyle:{color:'#00c853'},label:{show:true,color:'#fff',fontSize:10}},{name:'中性',type:'bar',stack:'t',data:sp.map(s=>((s.total-s.pos_cnt-s.neg_cnt)*100/s.total).toFixed(1)),itemStyle:{color:'#ff9800'}},{name:'负面',type:'bar',stack:'t',data:sp.map(s=>(s.neg_cnt*100/s.total).toFixed(1)),itemStyle:{color:'#ff1744'}}]})
   }
