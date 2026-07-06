@@ -57,19 +57,19 @@ public class ApiController {
         return jdbc.queryForList("SELECT product_id, star_score, sentiment_pos_rate, avg_sentiment, total_reviews, recommendation_score FROM ads_product_scorecard ORDER BY recommendation_score DESC");
     }
 
-    // ==== 新增：国家列表（下拉框） ====
+    // ==== 国家列表（下拉框） ====
     @GetMapping("/api/countries/list")
     public List<String> countryList() {
         return jdbc.queryForList("SELECT DISTINCT buyer_country FROM ads_country_top15", String.class);
     }
 
-    // ==== 新增：国家×商品矩阵（热力图） ====
+    // ==== 国家×商品矩阵（热力图） ====
     @GetMapping("/api/matrix")
     public List<Map<String, Object>> matrix() {
         return jdbc.queryForList("SELECT buyer_country, product_id, review_count, avg_star, avg_sentiment FROM ads_country_product_matrix ORDER BY review_count DESC");
     }
 
-    // ==== 新增：产品特征分析（ABSA） ====
+    // ==== 产品特征分析（ABSA） ====
     @GetMapping("/api/feature/{productId}")
     public List<Map<String, Object>> feature(@PathVariable String productId) {
         return jdbc.queryForList(
@@ -78,7 +78,7 @@ public class ApiController {
         );
     }
 
-    // ==== 新增：分国家产品特征 ====
+    // ==== 分国家产品特征 ====
     @GetMapping("/api/feature/{productId}/country/{code}")
     public List<Map<String, Object>> featureByCountry(@PathVariable String productId, @PathVariable String code) {
         return jdbc.queryForList(
@@ -87,7 +87,7 @@ public class ApiController {
         );
     }
 
-    // ==== 新增：分国家SKU偏好 ====
+    // ==== 分国家SKU偏好 ====
     @GetMapping("/api/sku/{productId}/country/{code}")
     public List<Map<String, Object>> skuByCountry(@PathVariable String productId, @PathVariable String code) {
         return jdbc.queryForList(
@@ -96,7 +96,7 @@ public class ApiController {
         );
     }
 
-    // ==== 新增：时间趋势（分国家×商品） ====
+    // ==== 时间趋势（分国家×商品） ====
     @GetMapping("/api/trend/{productId}/country/{code}")
     public List<Map<String, Object>> trendByCountry(@PathVariable String productId, @PathVariable String code) {
         return jdbc.queryForList(
