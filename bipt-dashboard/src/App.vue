@@ -3,7 +3,7 @@ import { ref, watch, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
-const API = 'http://192.168.229.101:8080/api'
+const API = import.meta.env.VITE_API_BASE_URL || 'http://192.168.229.101:8080/api'
 const selectedPid = ref('3256805677493085')
 const selectedCountry = ref('')
 const activeMenu = ref('overview')
@@ -22,8 +22,8 @@ const productNames = {'3256808363596774':'蓝牙耳机','3256807406290815':'手�
 const productList = Object.entries(productNames).map(([id,name])=>({id,name}))
 const countryNames = {'ES':'西班牙','UA':'乌克兰','FR':'法国','US':'美国','KR':'韩国','GB':'英国','IT':'意大利','BR':'巴西','MX':'墨西哥','PL':'波兰','DE':'德国','RU':'俄罗斯','NL':'荷兰','TR':'土耳其','JP':'日本','IL':'以色列','CL':'智利','CA':'加拿大','AU':'澳大利亚','PT':'葡萄牙','BE':'比利时','SE':'瑞典','AT':'奥地利'}
 function cn(c){return countryNames[c]||c}
-const featureNames = {'Quality of sound':'音质','Durability':'耐用','User Friendly ':'易用性','Fit':'合身度','Value for money':'性价比','Quality':'质量'}
-function cnF(f){return featureNames[f]||f}
+const featureNames = {'Quality of sound':'音质','Durability':'耐用','User Friendly':'易用性','User Friendly ':'易用性','Fit':'合身度','Value for money':'性价比','Quality':'质量'}
+function cnF(f){if(!f)return'';const t=f.trim();return featureNames[t]||featureNames[f]||t}
 const logisticsNames = {'Aliexpress Selection Standard':'速卖通标准','Aliexpress Selection Premium':'速卖通优先','AliExpress Standard':'速卖通标准','SF eParcel':'顺丰国际','Cainiao Super Economy':'菜鸟超级经济','AliExpress Super Economy':'速卖通经济','AliExpress Saver':'速卖通省钱','Seller\\\'s Shipping':'卖家自选','China Post Registered':'中国邮政航空','China Post Ordinary':'中国邮政小包','ePacket':'e邮宝','EMS':'EMS','DHL':'DHL','FedEx':'联邦快递','UPS':'UPS'}
 function cnL(l){if(!l)return'';for(const[k,v]of Object.entries(logisticsNames)){if(l.toLowerCase().includes(k.toLowerCase()))return v}return l.length>18?l.substring(0,17)+'..':l}
 const colorCN = {'black':'黑','white':'白','blue':'蓝','red':'红','pink':'粉','green':'绿','purple':'紫','grey':'灰','gray':'灰','brown':'棕','gold':'金','silver':'银','navy':'深蓝','Light Purple':'浅紫','Deep Blue':'深蓝','Burgundy':'酒红','Coffee':'咖啡','GRAY':'灰','Warm light':'暖光','White light':'白光','7 Color light':'七彩'}
@@ -43,6 +43,25 @@ function cnSku(s){
   return r.length>22?r.substring(0,21)+'..':r
 }
 
+// 提取：产品特征正/负面判断（统一逻辑，5处复用）
+function isPositiveFeature(f) {
+  return f.sentiment_flag === 'positive' || f.score === 'Fast' || f.score === 'Good' || f.score === 'Great' || f.score === 'Fits ok ' || f.score === 'Fits ok'
+}
+function isNegativeFeature(f) {
+  return f.sentiment_flag === 'negative' || f.score === 'Poor' || f.score === 'Difficult'
+}
+
+// axios 统一错误处理：接口异常时至少打印日志，避免前端静默白屏
+async function apiGet(url) {
+  try {
+    const r = await axios.get(url)
+    return r
+  } catch (e) {
+    console.error('[API错误]', url, e.message)
+    throw e
+  }
+}
+
 let charts={}
 function cc(id,opt){setTimeout(()=>{const d=document.getElementById(id);if(d&&d.clientWidth>0){if(charts[id])charts[id].dispose();const c=echarts.init(d);c.setOption(opt);charts[id]=c}},150)}
 function clearAll(){Object.values(charts).forEach(c=>c.dispose());charts={}}
@@ -52,24 +71,24 @@ const liveMetrics = ref({totalReviews:0,posRate:0,todayRec:''})
 
 async function loadAll(){
   const pid=selectedPid.value;const cid=selectedCountry.value
-  const r=await axios.get(`${API}/decision/${pid}`)
+  const r=await apiGet(`${API}/decision/${pid}`)
   decision.value=r.data;const d=r.data
   const topRec=d.scorecard?d.scorecard[0]:null
   liveMetrics.value={totalReviews:d.sentiment?.total||0,posRate:d.sentiment?.pos_rate||0,todayRec:topRec?productNames[topRec.product_id]:'--'}
 
   const [matrix,monthly,logistics,sentiment,scorecard,feats,trend,sku]=await Promise.all([
-    axios.get(API+'/matrix'),axios.get(API+'/trend/monthly'),axios.get(API+'/logistics'),
-    axios.get(API+'/sentiment/product'),axios.get(API+'/scorecard'),
-    axios.get(`${API}/feature/${pid}`),axios.get(API+'/trend/monthly'),axios.get(API+'/sku/analysis'),
+    apiGet(API+'/matrix'),apiGet(API+'/trend/monthly'),apiGet(API+'/logistics'),
+    apiGet(API+'/sentiment/product'),apiGet(API+'/scorecard'),
+    apiGet(`${API}/feature/${pid}`),apiGet(API+'/trend/monthly'),apiGet(API+'/sku/analysis'),
   ])
 
   let cf=[],ct=[],cs=[]
   if(cid){
     try{
-      const [a,b,c]=await Promise.all([axios.get(`${API}/feature/${pid}/country/${cid}`),axios.get(`${API}/trend/${pid}/country/${cid}`),axios.get(`${API}/sku/${pid}/country/${cid}`)])
+      const [a,b,c]=await Promise.all([apiGet(`${API}/feature/${pid}/country/${cid}`),apiGet(`${API}/trend/${pid}/country/${cid}`),apiGet(`${API}/sku/${pid}/country/${cid}`)])
       cf=a.data;ct=b.data;cs=c.data
-      const fPos=cf.filter(f=>f.sentiment_flag==='positive'||f.score==='Fast'||f.score==='Good'||f.score==='Great'||f.score==='Fits ok ')
-      const fNeg=cf.filter(f=>f.sentiment_flag==='negative'||f.score==='Poor'||f.score==='Difficult')
+      const fPos=cf.filter(isPositiveFeature)
+      const fNeg=cf.filter(isNegativeFeature)
       const lTrend=ct.slice(-3)
       const dir=lTrend.length>=2?(lTrend[lTrend.length-1].avg_star>=lTrend[0].avg_star?'上升':'下降'):'--'
       const cm=matrix.data.filter(r=>r.buyer_country===cid&&r.product_id===pid)[0]
@@ -81,7 +100,7 @@ async function loadAll(){
         strengths:fPos.slice(0,4),weaknesses:fNeg.slice(0,4),topSku:cs.slice(0,2),
         name:productNames[pid],cnName:cn(cid),featData:cf,trendData:ct,skuData:cs,
       }
-    }catch(e){countryInsight.value=null}
+    }catch(e){console.error('[国家洞察加载失败]',cid,pid,e.message);countryInsight.value=null}
   }else{countryInsight.value=null}
 
   td.value={matrix:matrix.data,trend:trend.data,logistics:logistics.data,sentiment:sentiment.data,scorecard:scorecard.data,feats:feats.data,sku:sku.data,countryFeat:cf,countryTrend:ct,countrySku:cs}
@@ -106,16 +125,17 @@ function renderCharts(){
     // 选品排名柱状
     cc('ch4',{tooltip:{trigger:'axis'},grid:{left:100,right:60,top:10,bottom:20},xAxis:{type:'value',name:'推荐指数',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:d.scorecard.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#333',fontSize:13,fontWeight:'bold'}},series:[{type:'bar',data:d.scorecard.map(s=>Math.round(s.recommendation_score*10)/10),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#2979ff'},{offset:1,color:'#82b1ff'}]),borderRadius:[0,4,4,0]},label:{show:true,position:'right',color:'#333',fontSize:13,fontWeight:'bold',formatter:'{c}分'},markLine:{symbol:'none',data:[{type:'average',label:{show:true,color:'#999',fontSize:10,position:'start',formatter:'均线{c}'}}],lineStyle:{color:'#bbb',type:'dashed'}}}]})
 
-    // 特征ABSA
-    const fp=d.feats.filter(f=>f.score==='Fast'||f.score==='Good'||f.score==='Great'||f.score==='Fits ok '||f.sentiment_flag==='positive')
-    const fn=d.feats.filter(f=>f.score==='Poor'||f.score==='Difficult'||f.sentiment_flag==='negative')
+    // 特征ABSA（数据概览Tab）
+    const fp=d.feats.filter(isPositiveFeature)
+    const fn=d.feats.filter(isNegativeFeature)
     const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
     cc('ch5',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
   }
 
   if(m==='sentiment'){
-    const fp=d.feats.filter(f=>f.score==='Fast'||f.score==='Good'||f.score==='Great'||f.score==='Fits ok '||f.sentiment_flag==='positive')
-    const fn=d.feats.filter(f=>f.score==='Poor'||f.score==='Difficult'||f.sentiment_flag==='negative')
+    // 特征ABSA（情感分析Tab）
+    const fp=d.feats.filter(isPositiveFeature)
+    const fn=d.feats.filter(isNegativeFeature)
     const fk=[...new Set(d.feats.map(f=>cnF(f.feature)))]
     cc('ch-s2',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:fk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:fk.map(f=>{const r=fp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:fk.map(f=>{const r=fn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
     const sp=d.sentiment
@@ -129,8 +149,9 @@ function renderCharts(){
       if(d.countryTrend&&d.countryTrend.length) cc('ch-d1',{tooltip:{trigger:'axis'},grid:{left:55,right:20,top:10,bottom:40},xAxis:{type:'category',data:d.countryTrend.map(t=>t.month||t.eval_month),axisLabel:{color:'#889',fontSize:11,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#889',fontSize:11},min:3,max:5},series:[{type:'line',data:d.countryTrend.map(t=>Math.round(t.avg_star*100)/100),smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#ff6d00',width:2.5},itemStyle:{color:'#ff6d00'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(255,109,0,0.2)'},{offset:1,color:'rgba(255,109,0,0.02)'}])}}]})
       if(d.countrySku&&d.countrySku.length){const sd=d.countrySku.slice(0,8);cc('ch-d2',{tooltip:{trigger:'axis'},grid:{left:150,right:40,top:10,bottom:10},yAxis:{type:'category',data:sd.map(s=>cnSku(s.sku_info)).reverse(),axisLabel:{color:'#333',fontSize:11}},xAxis:{type:'value',name:'评论数',axisLabel:{color:'#889',fontSize:11}},series:[{type:'bar',data:sd.map(s=>s.review_count).reverse(),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#ff6d00'},{offset:1,color:'#ffab40'}]),borderRadius:[0,3,3,0]},label:{show:true,position:'right',color:'#333',fontSize:11}}]})}
       if(d.countryFeat&&d.countryFeat.length){
-        const cfp=d.countryFeat.filter(f=>f.score==='Fast'||f.score==='Good'||f.score==='Great'||f.score==='Fits ok '||f.sentiment_flag==='positive')
-        const cfn=d.countryFeat.filter(f=>f.score==='Poor'||f.score==='Difficult'||f.sentiment_flag==='negative')
+        // 特征ABSA（选品建议Tab — 国家×商品过滤）
+        const cfp=d.countryFeat.filter(isPositiveFeature)
+        const cfn=d.countryFeat.filter(isNegativeFeature)
         const cfk=[...new Set(d.countryFeat.map(f=>cnF(f.feature)))]
         cc('ch-d3',{tooltip:{trigger:'axis'},legend:{data:['好评','差评'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:90,right:50,top:30,bottom:25},xAxis:{type:'value',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:cfk.reverse(),axisLabel:{color:'#333',fontSize:12}},series:[{name:'好评',type:'bar',data:cfk.map(f=>{const r=cfp.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#00c853'},barGap:'20%'},{name:'差评',type:'bar',data:cfk.map(f=>{const r=cfn.find(x=>cnF(x.feature)===f);return r?r.cnt:0}).reverse(),itemStyle:{color:'#ff1744'}}]})
       }
@@ -184,7 +205,7 @@ onMounted(()=>loadAll())
         <div style="margin-bottom:16px"><div class="card"><div class="ctitle">🗺 国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
         <div class="card-row-2">
           <div class="card"><div class="ctitle">📊 选品推荐排名</div><div id="ch4" class="chart"></div></div>
-          <div class="card"><div class="ctitle">🔍 全站产品特征分析</div><div id="ch5" class="chart"></div></div>
+          <div class="card"><div class="ctitle">🗂 数据总览说明</div><div style="padding:24px;color:#889;line-height:2;font-size:13px">✅ 数据来源：速卖通5品类用户真实评论<br>✅ 分析模型：VADER情感打分 + ABSA特征抽取<br>✅ 选品依据：好评率 + 情感均分 + 评论规模 + 星评<br>✅ 最佳市场算法：分国家×商品交叉矩阵评分排序</div></div>
         </div>
       </div>
 
