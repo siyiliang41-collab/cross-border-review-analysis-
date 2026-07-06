@@ -229,7 +229,7 @@ class AliExpressReviewScraper:
             "hasFollowUp": 1 if review.get("buyerAddFbContent") else 0,
             "addFeedback": review.get("buyerAddFbContent", ""),
             "anonymous": review.get("anonymous", False),
-            # AI 提取的产品特征标签
+            # 平台提取的产品特征标签
             "label1": review.get("reviewLabel1", ""),
             "labelValue1": review.get("reviewLabelValue1", ""),
             "label2": review.get("reviewLabel2", ""),
