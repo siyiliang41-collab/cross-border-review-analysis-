@@ -8,12 +8,14 @@
 ## 目录
 
 1. [环境概况](#一环境概况)
-2. [前置检查：MySQL 是否正常](#二前置检查mysql-是否正常)
-3. [前置检查：后端 SpringBoot 是否运行](#三前置检查后端-springboot-是否运行)
-4. [启动前端大屏](#四启动前端大屏)
-5. [验证全链路](#五验证全链路)
-6. [常见问题排查](#六常见问题排查)
-7. [HA 故障切换演示（答辩必演示）](#七ha-故障切换演示答辩必演示)
+2. [集群冷启动（VM 重启后完整启动流程）](#八集群冷启动vm-重启--一切从零开始)
+3. [前置检查：MySQL 是否正常](#二前置检查mysql-是否正常)
+4. [前置检查：后端 SpringBoot 是否运行](#三前置检查后端-springboot-是否运行)
+5. [访问前端大屏](#四访问前端大屏)
+6. [验证全链路](#五验证全链路)
+7. [常见问题排查](#六常见问题排查)
+8. [HA 故障切换演示（答辩必演示）](#七ha-故障切换演示答辩必演示)
+9. [快速启动速查卡](#九快速启动速查卡)
 
 ---
 
@@ -190,70 +192,41 @@ cat /root/app.log
 
 ---
 
-## 四、启动前端大屏
+## 四、访问前端大屏
 
-### 4.1 确认 Node.js 已安装
+> **v3.0 起前端已打包嵌入后端 JAR 包，无需 `npm run dev`。**  
+> 后端启动时会自动托管前端静态文件，浏览器直接访问即可。
 
-在本机 Windows 上打开终端：
+### 4.1 浏览器打开
 
-```bash
-node --version
-# 应显示 v18 或以上
+**`http://192.168.229.101:8080`**
 
-npm --version
-# 应显示 9 或以上
-```
+同一个端口同时提供 API 和前端页面，无跨域问题。
 
-### 4.2 确认依赖已安装
+### 4.2 前端需要修改时怎么调试
 
-```bash
-cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
-
-# 检查 node_modules 是否存在
-ls node_modules
-```
-
-如果 `node_modules` 不存在（首次运行），安装依赖：
-
-```bash
-npm install
-```
-
-### 4.3 修改 API 地址（如果需要）
-
-如果后端IP变了，编辑 `.env` 文件：
-
-```bash
-notepad .env
-```
-
-内容只有一行：
-
-```
-VITE_API_BASE_URL=http://192.168.229.101:8080/api
-```
-
-把 IP 改成 hadoop01 当前的IP即可。
-
-### 4.4 启动开发服务器
+如果后续要改前端代码，先用开发模式调试：
 
 ```bash
 cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
 npm run dev
+# → http://localhost:5173（热更新，改代码即刷新）
 ```
 
-看到类似输出表示启动成功：
+调试完毕确认无误后，重新打包嵌入后端：
 
+```bash
+cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
+npm run build
+
+# 把 dist 拷入后端 static 目录
+rm -rf "../bipt-api/src/main/resources/static"
+cp -r dist/* "../bipt-api/src/main/resources/static/"
+
+# 上传到 hadoop01 重新编译后端
+scp -r "../bipt-api/src" "root@192.168.229.101:/root/bipt-api/"
+ssh root@192.168.229.101 "cd /root/bipt-api && mvn clean package -DskipTests -q && pkill -f bipt-api; sleep 1; nohup java -jar target/bipt-api-1.0.0.jar > /root/app.log 2>&1 &"
 ```
-  VITE v8.x.x  ready in xxx ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
-
-### 4.5 在浏览器打开
-
-浏览器访问：**http://localhost:5173**
 
 ---
 
@@ -557,35 +530,189 @@ echo -e "\n========== 演示完成 =========="
 
 ---
 
-## 快速启动速查卡
+## 八、集群冷启动（VM 重启 / 一切从零开始）
 
-每次答辩演示前，逐条确认：
+> **适用场景：** VM 关机后重启、长期未使用、或者 `jps` 发现进程全没了。  
+> **核心原则：** ZooKeeper → JournalNode → NameNode（HDFS）→ DataNode → ZKFC，顺序不能乱。
+
+### 8.1 启动 ZooKeeper（三台都要）
+
+ZooKeeper 是 HA 的协调中心——HDFS 的选主和故障切换都依赖它，必须最先启。
 
 ```bash
-# ===== 基础服务 =====
-# ① 三台 VM 都启 ZooKeeper
-ssh hadoop01 "zkServer.sh start"
+# 在 hadoop01 上执行（本机 + 远程另两台）
+zkServer.sh start
 ssh hadoop02 "zkServer.sh start"
 ssh hadoop03 "zkServer.sh start"
 
-# ② hadoop01 上启动 HDFS
-ssh hadoop01 "start-dfs.sh"
+# 等 3 秒让选举完成，然后验证
+sleep 3
+zkServer.sh status
+ssh hadoop02 "zkServer.sh status"
+ssh hadoop03 "zkServer.sh status"
+```
 
-# ③ hadoop01 上确保 HA 正常
+**预期输出：**
+```
+hadoop01: Mode: follower
+hadoop02: Mode: leader
+hadoop03: Mode: follower
+```
+
+> 三台中任意一台为 Leader、其余为 Follower 即正常。具体哪台当 Leader 不重要。
+
+**常见问题：**
+- `Error contacting service` → 还没启起来，等几秒再查
+- 三台全是 follower → 再等一下，选举正在进行
+- 三台全是 leader → 不可能，检查网络
+
+### 8.2 启动 JournalNode（三台都要）
+
+JournalNode 负责存储 NameNode 的编辑日志（HA 数据同步的基础）。
+
+```bash
+ssh hadoop01 "hdfs --daemon start journalnode"
+ssh hadoop02 "hdfs --daemon start journalnode"
+ssh hadoop03 "hdfs --daemon start journalnode"
+```
+
+验证（每台上都应该看到 JournalNode 进程）：
+
+```bash
+ssh hadoop01 "jps | grep JournalNode"
+ssh hadoop02 "jps | grep JournalNode"
+ssh hadoop03 "jps | grep JournalNode"
+```
+
+### 8.3 启动 HDFS
+
+在 **hadoop01** 上直接执行：
+
+```bash
+start-dfs.sh
+```
+
+这条命令会自动启动：
+- hadoop01 上的 NameNode + ZKFC
+- hadoop02 上的 NameNode + ZKFC
+- 三台上的 DataNode
+
+等 5 秒让 HA 初始化，然后验证：
+
+```bash
+sleep 5
+
+# 检查所有进程
+jps
+ssh hadoop02 "jps"
+ssh hadoop03 "jps"
+
+# 检查 HA 状态
+hdfs haadmin -getAllServiceState
+```
+
+**预期输出：**
+```
+hadoop01:8020                                      active
+hadoop02:8020                                      standby
+```
+
+### 8.4 验证 HDFS 可读写
+
+```bash
+# 读
+hdfs dfs -ls /
+
+# 写一个测试文件确认正常
+echo "冷启动验证-$(date +%H:%M:%S)" > /tmp/startup_test.txt
+hdfs dfs -put -f /tmp/startup_test.txt /startup_test.txt
+hdfs dfs -cat /startup_test.txt
+```
+
+### 8.5 启动 YARN（如需要跑 MR/Spark）
+
+```bash
+# 在 hadoop03（ResourceManager 所在节点）上
+ssh hadoop03 "start-yarn.sh"
+```
+
+验证：
+
+```bash
+ssh hadoop03 "jps | grep ResourceManager"
+# 浏览器访问 http://192.168.229.103:8088 确认 Web UI 可打开
+```
+
+> YARN 只在需要跑 MR Job（性能对比）或 Spark on YARN 时才需要启。平时 HDFS + MySQL + 后端就够了。
+
+### 8.6 启动 MySQL
+
+```bash
+systemctl start mysqld
+systemctl status mysqld
+# 看到 active (running) 即可
+```
+
+验证数据在：
+
+```bash
+mysql -u root -p123456 -e "USE bipt_project; SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='bipt_project';"
+```
+
+### 8.7 启动后端 SpringBoot
+
+```bash
+# 先杀掉可能残留的旧进程
+pkill -f bipt-api 2>/dev/null
+
+# 启动
+cd /root/bipt-api
+nohup java -jar target/bipt-api-1.0.0.jar > /root/app.log 2>&1 &
+
+# 等 5 秒
+sleep 5
+
+# 验证
+curl http://localhost:8080/api/overview
+```
+
+---
+
+## 九、快速启动速查卡
+
+> **完整冷启动流程见第八章。** 以下是演示/答辩前逐条确认的速查清单。
+
+```bash
+# ===== 1. ZooKeeper（三台） =====
+ssh hadoop01 "zkServer.sh start"
+ssh hadoop02 "zkServer.sh start"
+ssh hadoop03 "zkServer.sh start"
+sleep 3
+
+# ===== 2. JournalNode（三台） =====
+ssh hadoop01 "hdfs --daemon start journalnode"
+ssh hadoop02 "hdfs --daemon start journalnode"
+ssh hadoop03 "hdfs --daemon start journalnode"
+
+# ===== 3. HDFS =====
+ssh hadoop01 "start-dfs.sh"
+sleep 5
+
+# ===== 4. 验证 HA 状态 =====
 ssh hadoop01 "hdfs haadmin -getAllServiceState"
 # 预期：active / standby 各一个
 
-# ④ hadoop01 上：MySQL 在跑？
+# ===== 5. MySQL =====
+ssh hadoop01 "systemctl start mysqld"
 ssh hadoop01 "systemctl status mysqld"
 
-# ⑤ hadoop01 上：后端在跑？
+# ===== 6. 后端 SpringBoot =====
+ssh hadoop01 "pkill -f bipt-api 2>/dev/null; cd /root/bipt-api && nohup java -jar target/bipt-api-1.0.0.jar > /root/app.log 2>&1 &"
+sleep 5
 ssh hadoop01 "curl http://localhost:8080/api/overview"
 
-# ===== 前端 =====
-# ⑥ 本机：启动前端
-cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
-npm run dev
+# ===== 7. 前端（已嵌入后端，无需单独启动） =====
 
-# ⑦ 浏览器打开 http://localhost:5173
-# ⑧ F12 → Console → 无红色报错 ✅
+# ⑧ 浏览器打开 http://192.168.229.101:8080
+# ⑨ F12 → Console → 无红色报错 ✅
 ```

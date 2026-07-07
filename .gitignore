@@ -39,7 +39,16 @@ spark-warehouse/
 metastore_db/
 derby.log
 
+# --- 图表输出 ---
+charts/_data_5products.csv
+
 # --- 临时文件 ---
 *.tmp
 *.bak
 *.orig
+
+# --- 编译产物（前端 build 输出，不应提交） ---
+bipt-api/src/main/resources/static/
+
+# --- 答辩素材（截图/录屏，体积大，单独管理） ---
+答辩截图汇总/

@@ -33,7 +33,7 @@ print("\n[1/5] 国家×商品×产品特征 三维ABSA矩阵...")
 feat = sent.filter(F.col("label1") != "").groupBy(
     "buyer_country", "product_id",
     F.col("label1").alias("feature"),
-    F.col("labelValue1").alias("score")
+    F.col("label_value1").alias("score")
 ).agg(F.count("*").alias("cnt"))
 
 # 标记正面/负面
@@ -73,15 +73,15 @@ to_mysql(matrix, "ads_country_product_matrix")
 # ============================================================
 print("\n[3/5] 分国家·分品类 SKU偏好分析...")
 
-top5_countries = spark.sql("""
+top_countries = spark.sql("""
     SELECT buyer_country FROM (
         SELECT buyer_country, COUNT(*) as c FROM ads_sentiment_detail
-        GROUP BY buyer_country ORDER BY c DESC LIMIT 10
+        GROUP BY buyer_country ORDER BY c DESC LIMIT 15
     ) t
 """)
 
 sku = sent.filter(F.col("sku_info") != "") \
-    .join(top5_countries, "buyer_country") \
+    .join(top_countries, "buyer_country") \
     .groupBy("buyer_country", "product_id", "sku_info") \
     .agg(
         F.count("*").alias("review_count"),

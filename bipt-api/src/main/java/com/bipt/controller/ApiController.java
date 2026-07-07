@@ -147,4 +147,67 @@ public class ApiController {
 
         return result;
     }
+
+    // ==== 数据质量分析报告 ====
+    @GetMapping("/api/quality/report")
+    public Map<String, Object> qualityReport() {
+        Map<String, Object> report = new LinkedHashMap<>();
+
+        // 1. 总体数据规模
+        Map<String, Object> overview = jdbc.queryForMap(
+            "SELECT " +
+            "(SELECT COUNT(DISTINCT product_id) FROM ads_product_rating) AS product_count, " +
+            "(SELECT COUNT(DISTINCT buyer_country) FROM ads_country_top15) AS country_count, " +
+            "(SELECT SUM(total) FROM ads_sentiment_product) AS total_reviews"
+        );
+        report.put("overview", overview);
+
+        // 2. 数据时间跨度
+        Map<String, Object> timeSpan = jdbc.queryForMap(
+            "SELECT MIN(m) AS earliest, MAX(m) AS latest, COUNT(DISTINCT m) AS months " +
+            "FROM ads_monthly_trend WHERE m IS NOT NULL AND m != ''"
+        );
+        report.put("timeSpan", timeSpan);
+
+        // 3. 各品类数据分布
+        List<Map<String, Object>> productDetail = jdbc.queryForList(
+            "SELECT r.product_id, r.total_reviews, r.avg_star, " +
+            "COALESCE(s.pos_rate,0) AS pos_rate, " +
+            "COALESCE(sc.recommendation_score,0) AS recommendation_score " +
+            "FROM ads_product_rating r " +
+            "LEFT JOIN ads_sentiment_product s ON r.product_id=s.product_id " +
+            "LEFT JOIN ads_product_scorecard sc ON r.product_id=sc.product_id " +
+            "ORDER BY r.total_reviews DESC"
+        );
+        report.put("productDetail", productDetail);
+
+        // 4. 数据清洗统计（已知数据：CSV原始 ~20,321，DWD清洗后 19,248）
+        long dwdTotal = 0;
+        var countResult = jdbc.queryForMap("SELECT SUM(total) AS t FROM ads_sentiment_product");
+        if (countResult.get("t") != null) dwdTotal = ((Number) countResult.get("t")).longValue();
+        long rawTotal = 20321; // 已知：CSV 文件行数-表头
+
+        Map<String, Object> cleaning = new LinkedHashMap<>();
+        cleaning.put("rawRows", rawTotal);
+        cleaning.put("cleanedRows", dwdTotal);
+        cleaning.put("removedRows", rawTotal - dwdTotal);
+        cleaning.put("removalRate", String.format("%.1f%%", (rawTotal - dwdTotal) * 100.0 / rawTotal));
+        report.put("cleaning", cleaning);
+
+        // 5. 各月份数据量趋势
+        List<Map<String, Object>> monthlyDetail = jdbc.queryForList(
+            "SELECT m AS month, cnt AS review_count, avg AS avg_star " +
+            "FROM ads_monthly_trend ORDER BY m"
+        );
+        report.put("monthlyDetail", monthlyDetail);
+
+        // 6. TOP10国家覆盖率
+        List<Map<String, Object>> topCountries = jdbc.queryForList(
+            "SELECT buyer_country, cnt AS review_count, ROUND(cnt*100.0/" + dwdTotal + ",1) AS coverage_rate " +
+            "FROM ads_country_top15 ORDER BY cnt DESC LIMIT 10"
+        );
+        report.put("topCountries", topCountries);
+
+        return report;
+    }
 }
