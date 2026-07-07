@@ -52,3 +52,6 @@ bipt-api/src/main/resources/static/
 
 # --- 答辩素材（截图/录屏，体积大，单独管理） ---
 答辩截图汇总/
+
+# --- 前端独立仓库（有自己的 git，不应嵌入主仓库） ---
+bipt-dashboard/
