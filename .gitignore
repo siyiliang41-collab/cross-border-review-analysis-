@@ -1,0 +1,54 @@
+# ============================================
+# 项目 .gitignore — 跨境电商评论情感挖掘与选品决策支持系统
+# ============================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# --- Node / 前端 ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- IDE ---
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# --- Claude AI（个人工具目录） ---
+.claude/
+
+# --- 大数据中间文件 ---
+*.crc
+spark-warehouse/
+metastore_db/
+derby.log
+
+# --- 临时文件 ---
+*.tmp
+*.bak
+*.orig
+
+# --- 编译产物 ---
+backend/src/main/resources/static/
+frontend/dist/
+
+# --- 答辩素材 ---
+答辩截图汇总/
+
+# --- CSV 数据文件（太大，单独管理） ---
+data/aliexpress_reviews.csv
