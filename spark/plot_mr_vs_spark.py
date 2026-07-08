@@ -53,8 +53,8 @@ for i, (d, s) in enumerate(zip(datasets, speedup)):
 
 # 底部结论文字（精简版，适合PPT）
 fig.text(0.5, 0.02, '注：Spark 第1组(1k)含JVM/SparkSession冷启动开销(~4s)，后续组复用内存，1万条仅需1.0s。\nMR固定开销约20s(YARN容器调度+序列化+磁盘溢写)，几乎不随数据量增长。',
-         ha='center', fontsize=11, color='#555', bbox=dict(boxstyle='round,pad=0.5', facecolor='#f5f5f5', edgecolor='#ddd'))
+         ha='center', fontsize=13, fontweight='bold', color='#333333')
 
-plt.tight_layout(rect=[0, 0.08, 1, 0.95])
+plt.tight_layout(rect=[0, 0.06, 1, 0.95])
 plt.savefig("../charts/mr_vs_spark.png", dpi=150, bbox_inches='tight')
 print("MR vs Spark 对比图已保存: charts/mr_vs_spark.png")
