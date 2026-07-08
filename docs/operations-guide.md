@@ -711,15 +711,15 @@ ssh hadoop01 "pkill -f bipt-api 2>/dev/null; cd /root/bipt-api && nohup java -ja
 sleep 5
 ssh hadoop01 "curl http://localhost:8080/api/overview"
 
-# ===== 7. 公网穿透（ngrok 固定域名） =====
-# 需要提前注册 ngrok 账号并配置 authtoken（一次性的，域名固定不变）
+# ===== 7. 公网穿透（可选，ngrok 固定域名） =====
+# 需要提前在 hadoop01 上配置 ngrok authtoken（一次性的）
 ssh hadoop01 "nohup ngrok http 8080 > /dev/null 2>&1 &"
-# 公网 API: https://squint-owl-worshiper.ngrok-free.dev/api
+# 公网访问: https://squint-owl-worshiper.ngrok-free.dev（首次需点 Visit Site）
 
 # ===== 8. 前端访问 =====
-# 局域网：
+# 局域网（推荐，答辩当天用）：
 #   浏览器打开 http://192.168.229.101:8080
-# 公网（任何人任何设备）：
-#   浏览器打开 https://siyiliang41-collab.github.io/lsy-dashboard
+# 公网（备用）：
+#   浏览器打开 https://squint-owl-worshiper.ngrok-free.dev
 # ⑨ F12 → Console → 无红色报错 ✅
 ```

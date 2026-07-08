@@ -66,10 +66,10 @@ function isNegativeFeature(f) {
   return f.sentiment_flag === 'negative' || s === 'Poor' || s === 'Difficult'
 }
 
-// axios 统一错误处理：接口异常时至少打印日志，避免前端静默白屏
+// axios 统一错误处理 + ngrok 免拦截头
 async function apiGet(url) {
   try {
-    const r = await axios.get(url)
+    const r = await axios.get(url, {headers:{'ngrok-skip-browser-warning':'true'}})
     return r
   } catch (e) {
     console.error('[API错误]', url, e.message)
