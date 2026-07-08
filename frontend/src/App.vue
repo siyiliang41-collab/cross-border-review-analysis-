@@ -54,7 +54,14 @@ function getSkuName(s){
   return r.length>22?r.substring(0,21)+'..':r
 }
 
-// 提取：产品特征正/负面判断（统一逻辑，5处复用，score字段兼容首尾空格）
+// LDA 负面主题结论（每个品类的 TOP2 风险，当某国家无负面特征时作为兜底显示）
+const LDA_WEAKNESS = {
+  '3256808363596774': ['音质差','商品损坏'],     // 蓝牙耳机
+  '3256807406290815': ['材质廉价','适配错误'],   // 手机壳
+  '3256807087680846': ['尺寸太小','与图片不符'], // LED小夜灯
+  '3256807145227935': ['适配错误','材质廉价'],   // 连衣裙
+  '3256805677493085': ['到货损坏','材质廉价'],   // 油壶
+}
 function isPositiveFeature(f) {
   const s = (f.score || '').trim()
   return f.sentiment_flag === 'positive' || s === 'Fast' || s === 'Good' || s === 'Great' || s === 'Fits ok'
@@ -153,21 +160,69 @@ async function loadAll(){
     }catch(e){return {...c, features:[], trend:[], skus:[]}}
   }))
 
-  // 计算趋势 & 提炼亮点
+  // 计算趋势 & 提炼亮点 + LDA 兜底
+  const ldaFallback=LDA_WEAKNESS[pid]||[]
   for(const c of details){
     const recent=(c.trend||[]).slice(-3)
     c.trendDir=recent.length>=2?(recent[recent.length-1].avg_star>=recent[0].avg_star?'↑上升':'↓下降'):'--'
     c.trendScores=recent.length?recent.map(t=>Math.round(t.avg_star*100)/100).join('→'):'--'
     c.strengths=(c.features||[]).filter(isPositiveFeature).slice(0,2)
     c.weaknesses=(c.features||[]).filter(isNegativeFeature).slice(0,2)
+    // LDA 兜底：如果该国没有负面特征数据，用全品类 LDA 结论
+    if(!c.weaknesses.length&&ldaFallback.length)c._ldaFallback=ldaFallback
     c.topSku=(c.skus||[]).slice(0,2)
   }
 
   marketRanking.value=details
+  // 修复右侧悬浮卡
+  liveMetrics.value={
+    totalReviews:details.reduce((s,c)=>s+(c.reviewCount||0),0),
+    posRate:(sentiment.data.find(s=>s.product_id===pid)||{}).pos_rate||0,
+    todayRec:'--',
+  }
+
   allData.value={matrix:matrix.data,trend:trend.data,logistics:logistics.data,
     sentiment:sentiment.data,scorecard:scorecard.data,feats:feats.data,sku:sku.data,ranking:details}
   renderCharts()
 }
+
+const countryDetail=ref(null)  // 选中国家的深度洞察
+async function loadCountryDetail(){
+  const pid=selectedPid.value;const cid=selectedCountry.value
+  if(!cid){countryDetail.value=null;return}
+  try{
+    const [fr,tr,sr,mr]=await Promise.all([
+      apiGet(`${API}/feature/${pid}/country/${cid}`),
+      apiGet(`${API}/trend/${pid}/country/${cid}`),
+      apiGet(`${API}/sku/${pid}/country/${cid}`),
+      apiGet(API+'/matrix'),
+    ])
+    const cm=mr.data.filter(r=>r.buyer_country===cid&&r.product_id===pid)[0]
+    if(!cm||(cm.review_count||0)===0){countryDetail.value=null;return}
+    const cf=fr.data||[];const ct=tr.data||[];const cs=sr.data||[]
+    const fPos=cf.filter(isPositiveFeature);const fNeg=cf.filter(isNegativeFeature)
+    const lTrend=ct.slice(-3)
+    const dir=lTrend.length>=2?(lTrend[lTrend.length-1].avg_star>=lTrend[0].avg_star?'↑上升':'↓下降'):'--'
+    countryDetail.value={
+      reviewCount:cm.review_count,avgStar:Math.round(cm.avg_star*100)/100,
+      avgSentiment:Math.round((cm.avg_sentiment||0)*1000)/1000,
+      trendDir:dir,trendScores:lTrend.map(t=>Math.round(t.avg_star*100)/100).join('→'),
+      strengths:fPos.slice(0,3),weaknesses:fNeg.slice(0,3),topSku:cs.slice(0,3),
+      name:productNames[pid],cnName:getCountryName(cid),featData:cf,trendData:ct,skuData:cs,
+    }
+    nextTick(()=>{
+      if(countryDetail.value&&countryDetail.value.trendData.length){
+        createChart('ch-d-trend',{tooltip:{trigger:'axis'},grid:{left:55,right:20,top:10,bottom:40},xAxis:{type:'category',data:ct.map(t=>t.month||t.eval_month),axisLabel:{color:'#333',fontSize:12,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#333',fontSize:12},min:2.5,max:5},series:[{type:'line',data:ct.map(t=>Math.round(t.avg_star*100)/100),smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#1677FF',width:2.5},itemStyle:{color:'#1677FF'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(22,119,255,0.2)'},{offset:1,color:'rgba(22,119,255,0.02)'}])}}]})
+      }
+      if(cs.length>0){
+        const sd=cs.slice(0,8)
+        createChart('ch-d-sku',{tooltip:{trigger:'axis'},grid:{left:150,right:40,top:10,bottom:10},yAxis:{type:'category',data:sd.map(s=>getSkuName(s.sku_info)).reverse(),axisLabel:{color:'#333',fontSize:12}},xAxis:{type:'value',name:'评论数',axisLabel:{color:'#333',fontSize:12}},series:[{type:'bar',data:sd.map(s=>s.review_count).reverse(),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#1677FF'},{offset:1,color:'#82b1ff'}]),borderRadius:[0,3,3,0]},label:{show:true,position:'right',color:'#333',fontSize:12}}]})
+      }
+      if(cf.length>0) renderFeatureChart('ch-d-feat', cf)
+    })
+  }catch(e){console.error(e);countryDetail.value=null}
+}
+watch(selectedCountry,()=>loadCountryDetail())
 
 function renderCharts(){
   clearAll();const data=allData.value;const currentTab=activeMenu.value
@@ -198,23 +253,6 @@ function renderCharts(){
     createChart('ch-s1',{tooltip:{trigger:'axis'},legend:{data:['正面','中性','负面'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:55,right:30,top:30,bottom:30},xAxis:{type:'category',data:sp.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#889',fontSize:11,rotate:15}},yAxis:{type:'value',name:'%',min:0,max:100,axisLabel:{color:'#889',fontSize:11}},series:[{name:'正面',type:'bar',stack:'t',data:sp.map(s=>s.pos_rate),itemStyle:{color:'#00c853'},label:{show:true,color:'#fff',fontSize:10}},{name:'中性',type:'bar',stack:'t',data:sp.map(s=>Number(((s.total-s.pos_cnt-s.neg_cnt)*100/s.total).toFixed(1))),itemStyle:{color:'#ff9800'}},{name:'负面',type:'bar',stack:'t',data:sp.map(s=>Number((s.neg_cnt*100/s.total).toFixed(1))),itemStyle:{color:'#ff1744'}}]})
   }
 
-  if(currentTab==='decision'){
-    // TOP3国家趋势对比折线
-    const top3=marketRanking.value.slice(0,3).filter(c=>c.trend&&c.trend.length>0)
-    if(top3.length>0){
-      const colors=['#1677FF','#F53F3F','#00B42A']
-      // 合并所有国家的时间轴
-      const allMonths=[...new Set(top3.flatMap(c=>c.trend.map(t=>t.month||t.eval_month)))].sort()
-      const series=top3.map((c,i)=>({
-        name:getCountryName(c.country),type:'line',
-        data:allMonths.map(m=>{const pt=c.trend.find(t=>(t.month||t.eval_month)===m);return pt?Math.round(pt.avg_star*100)/100:null}),
-        smooth:true,symbol:'circle',symbolSize:6,
-        lineStyle:{color:colors[i],width:2.5},itemStyle:{color:colors[i]},
-        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:colors[i]+'33'},{offset:1,color:colors[i]+'05'}])}
-      }))
-      createChart('ch-d-trend',{tooltip:{trigger:'axis'},legend:{data:series.map(s=>s.name),textStyle:{color:'#333',fontSize:12},top:0},grid:{left:55,right:20,top:35,bottom:40},xAxis:{type:'category',data:allMonths,axisLabel:{color:'#333',fontSize:11,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#333',fontSize:11},min:2.5,max:5},series})
-    }
-  }
 }
 
 watch(selectedPid,()=>loadAll())
@@ -295,29 +333,56 @@ async function loadQuality(){
               <span class="mr-flag">{{ getCountryName(c.country) }}</span>
               <span class="mr-stars">⭐{{ c.avgStar }}</span>
               <span class="mr-reviews">{{ c.reviewCount }}条评论</span>
-              <span :style="{color:c.trendDir.indexOf('↑')>=0?'#00B42A':'#F53F3F',fontWeight:'bold',marginLeft:'8px'}">{{ c.trendDir }}</span>
-              <span v-if="c.trendScores!=='--'" style="font-size:11px;color:#999;marginLeft:4px">{{ c.trendScores }}</span>
+              <span :style="{color:c.trendDir.indexOf('↑')>=0?'#00B42A':'#F53F3F',fontWeight:'bold',marginLeft:'8px',fontSize:'14px'}">{{ c.trendDir }}</span>
+              <span v-if="c.trendScores!=='--'" style="font-size:12px;color:#555;marginLeft:4px">{{ c.trendScores }}</span>
             </div>
             <div class="mr-body">
               <div class="mr-cols">
                 <div class="mr-col">
                   <div class="mr-label">核心优势</div>
-                  <div v-if="c.strengths.length">{{ c.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、') }}</div>
-                  <div v-else style="color:#999">数据收集中</div>
+                  <div v-if="c.strengths.length" class="mr-val">{{ c.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、') }}</div>
+                  <div v-else class="mr-val-dim">数据收集中</div>
                 </div>
                 <div class="mr-col">
                   <div class="mr-label">推荐SKU</div>
-                  <div v-if="c.topSku.length">{{ c.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}</div>
-                  <div v-else style="color:#999">数据收集中</div>
+                  <div v-if="c.topSku.length" class="mr-val">{{ c.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}</div>
+                  <div v-else class="mr-val-dim">数据收集中</div>
                 </div>
                 <div class="mr-col">
                   <div class="mr-label">注意风险</div>
-                  <div v-if="c.weaknesses.length">{{ c.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、') }}</div>
-                  <div v-else style="color:#999">暂无显著负面</div>
+                  <div v-if="c.weaknesses.length" class="mr-val">{{ c.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、') }}</div>
+                  <div v-else-if="c._ldaFallback" class="mr-val" style="color:#e65100">*{{ c._ldaFallback.join('、') }}</div>
+                  <div v-else class="mr-val-dim">暂无显著负面</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <!-- 国家详情（选中国家后展开） -->
+        <div style="margin-top:16px;padding:14px 18px;background:#fafafa;border-radius:10px">
+          <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">🔍 选择国家查看深度洞察</div>
+          <select v-model="selectedCountry" class="tb-sel" style="color:#333;background:#fff;border:1px solid #ddd;padding:8px 16px;border-radius:6px;font-size:14px;width:200px;margin-bottom:12px">
+            <option value="">— 选择国家 —</option><option v-for="r in marketRanking" :key="r.country" :value="r.country">{{ getCountryName(r.country) }} (⭐{{ r.avgStar }})</option>
+          </select>
+          <div v-if="countryDetail" style="margin-top:10px">
+            <div class="country-card" style="margin-bottom:10px">
+              <div class="cc-hd"><span class="cc-flag">{{ countryDetail.cnName }}</span> 市场深度洞察 — {{ countryDetail.name }}</div>
+              <div class="cc-body">
+                <div class="cc-stat"><span class="cc-num blue">{{ countryDetail.avgStar }}</span><span class="cc-lbl">平均星评</span></div>
+                <div class="cc-stat"><span class="cc-num green">{{ countryDetail.reviewCount }}</span><span class="cc-lbl">评论数</span></div>
+                <div class="cc-stat"><span :class="'cc-num '+(countryDetail.trendDir.indexOf('↑')>=0?'green':'red')">{{ countryDetail.trendDir }}</span><span class="cc-lbl">评分趋势 {{ countryDetail.trendScores }}</span></div>
+                <div class="cc-stat"><span class="cc-num" style="font-size:16px">{{ countryDetail.topSku[0] ? getSkuName(countryDetail.topSku[0].sku_info) : '暂无数据' }}</span><span class="cc-lbl">推荐属性</span></div>
+              </div>
+              <div class="cc-insight">
+                💡 {{ countryDetail.strengths.length ? '消费者认可'+countryDetail.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}{{ countryDetail.weaknesses.length ? '主要不满集中在'+countryDetail.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}建议备货{{ countryDetail.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}，维持高分物流渠道。
+              </div>
+            </div>
+            <div class="card-row-2">
+              <div class="card"><div class="ctitle">📈 评分趋势</div><div id="ch-d-trend" class="chart"></div></div>
+              <div class="card"><div class="ctitle">🛒 SKU偏好</div><div id="ch-d-sku" class="chart"></div></div>
+            </div>
+          </div>
+          <div v-else style="text-align:center;padding:30px;color:#999">上方选择国家后，此处展示该国的完整分析</div>
         </div>
       </div>
 
@@ -448,7 +513,7 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .cc-body{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
 .cc-stat{text-align:center}
 .cc-num{font-size:28px;font-weight:800;color:#111}.cc-num.blue{color:#1565c0}.cc-num.green{color:#2e7d32}.cc-num.red{color:#c62828}
-.cc-lbl{display:block;font-size:12px;color:#222;margin-top:4px}
+.cc-lbl{display:block;font-size:13px;color:#333;margin-top:4px;font-weight:600}
 .cc-insight{background:#fff;border-radius:8px;padding:14px 18px;font-size:14px;color:#000;line-height:1.7}
 
 /* 右侧悬浮 */
@@ -461,12 +526,14 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .rank-card{background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
 .mr-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .mr-rank{font-size:20px;font-weight:800;color:#1565c0;min-width:32px}
-.mr-flag{font-size:16px;font-weight:700;color:#1E293B}
+.mr-flag{font-size:17px;font-weight:700;color:#1E293B}
 .mr-stars{font-size:15px;font-weight:700;color:#1E293B}
-.mr-reviews{font-size:13px;color:#64748B}
+.mr-reviews{font-size:14px;color:#555;font-weight:600}
 .mr-body{border-top:1px solid #f0f0f0;padding-top:10px}
 .mr-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.mr-col{font-size:13px;color:#333;line-height:1.7}
-.mr-label{font-size:11px;color:#999;font-weight:600;text-transform:uppercase;margin-bottom:4px;letter-spacing:.5px}
+.mr-col{font-size:14px;color:#222;line-height:1.7;font-weight:600}
+.mr-label{font-size:12px;color:#555;font-weight:700;text-transform:uppercase;margin-bottom:4px;letter-spacing:.5px}
+.mr-val{color:#222;font-weight:600}
+.mr-val-dim{color:#777;font-weight:600}
 .info-banner{border-left:3px solid #1565c0!important}
 </style>
