@@ -3,7 +3,7 @@ import { ref, watch, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
-const API = import.meta.env.VITE_API_BASE_URL || 'https://released-contribution-cdna-roses.trycloudflare.com/api'
+const API = import.meta.env.VITE_API_BASE_URL || 'https://squint-owl-worshiper.ngrok-free.dev/api'
 const selectedPid = ref('3256805677493085')
 const selectedCountry = ref('')
 const activeMenu = ref('overview')

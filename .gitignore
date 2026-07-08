@@ -7,7 +7,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.egg-info/
-dist/
 build/
 .eggs/
 *.egg
@@ -30,7 +29,7 @@ yarn-error.log*
 *~
 .DS_Store
 
-# --- Claude AI（个人工具目录，严禁提交到团队仓库） ---
+# --- Claude AI（个人工具目录） ---
 .claude/
 
 # --- 大数据中间文件 ---
@@ -39,19 +38,17 @@ spark-warehouse/
 metastore_db/
 derby.log
 
-# --- 图表输出 ---
-charts/_data_5products.csv
-
 # --- 临时文件 ---
 *.tmp
 *.bak
 *.orig
 
-# --- 编译产物（前端 build 输出，不应提交） ---
-bipt-api/src/main/resources/static/
+# --- 编译产物 ---
+backend/src/main/resources/static/
+frontend/dist/
 
-# --- 答辩素材（截图/录屏，体积大，单独管理） ---
+# --- 答辩素材 ---
 答辩截图汇总/
 
-# --- 前端独立仓库（有自己的 git，不应嵌入主仓库） ---
-bipt-dashboard/
+# --- CSV 数据文件（太大，单独管理） ---
+data/aliexpress_reviews.csv
