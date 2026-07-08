@@ -31,7 +31,7 @@ axes[0].set_ylabel('耗时 (秒)')
 axes[0].set_title('WordCount 耗时对比')
 axes[0].set_xticks(x)
 axes[0].set_xticklabels(datasets)
-axes[0].legend(fontsize=11)
+axes[0].legend(fontsize=11, loc='upper right')
 axes[0].grid(axis='y', alpha=0.3)
 
 # 柱上标数值
