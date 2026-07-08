@@ -181,11 +181,11 @@ public class ApiController {
         );
         report.put("productDetail", productDetail);
 
-        // 4. 数据清洗统计（已知数据：CSV原始 ~20,321，DWD清洗后 19,248）
+        // 4. 数据清洗统计 — CSV 19,271 → DWD 19,248（动态查询）
         long dwdTotal = 0;
         var countResult = jdbc.queryForMap("SELECT SUM(total) AS t FROM ads_sentiment_product");
         if (countResult.get("t") != null) dwdTotal = ((Number) countResult.get("t")).longValue();
-        long rawTotal = 20321; // 已知：CSV 文件行数-表头
+        long rawTotal = 19271; // CSV 实际行数（Pandas read_csv 统计）
 
         Map<String, Object> cleaning = new LinkedHashMap<>();
         cleaning.put("rawRows", rawTotal);
