@@ -114,56 +114,163 @@ for cid in range(4):
     print(f"  {cluster_labels[cid]} (聚类{cid}): {', '.join(names)}")
 
 # ============================================================
-# 4. PCA 降维可视化
+# 4. PCA 降维可视化（全新设计）
 # ============================================================
-print(f"\n[4/5] PCA 可视化...")
+print(f"\n[4/5] PCA 降维可视化...")
 
 pca = PCA(n_components=2)
 X_pca = pca.fit_transform(X_scaled)
 country_features['pca_x'] = X_pca[:, 0]
 country_features['pca_y'] = X_pca[:, 1]
 
-colors = ['#1565c0', '#2e7d32', '#e65100', '#6a1b9a']
-fig, axes = plt.subplots(1, 2, figsize=(16, 6.5))
-fig.suptitle("KMeans 国家分群 — 跨境电商消费市场聚类分析", fontsize=16, fontweight='bold')
+# === 配色方案（业务语义） ===
+PALETTE = {'Star': '#5B3F9E', 'Seed': '#2E9B70', 'Box': '#E6A23C', 'Zoom': '#94A3B8'}
+LABEL_FULL = {
+    'Star': '成熟高价值市场',
+    'Seed': '潜力精品市场',
+    'Box':   '价格敏感大市场',
+    'Zoom':  '长尾探索市场',
+}
+LABEL_DESC = {
+    'Star': '高评分 + 高活跃 · 推荐重点投入',
+    'Seed': '高评分 + 低活跃 · 适合新品试水',
+    'Box':   '高活跃 + 评分适中 · 价格/物流是主导',
+    'Zoom':  '低活跃 + 低评分 · 暂不推荐重点投入',
+}
 
-# 左图：PCA 散点图
+# 聚类标签统一为中文+代号格式
+for cid, orig in cluster_labels.items():
+    if 'Star' in orig: cluster_labels[cid] = '成熟高价值 (Star)'
+    elif 'Seed' in orig: cluster_labels[cid] = '潜力精品 (Seed)'
+    elif 'Box' in orig: cluster_labels[cid] = '价格敏感 (Box)'
+    elif 'Zoom' in orig: cluster_labels[cid] = '长尾探索 (Zoom)'
+
+country_features['cluster_label'] = country_features['cluster'].map(cluster_labels)
+country_features['color'] = country_features['cluster'].apply(
+    lambda c: PALETTE.get(('Star' if 'Star' in cluster_labels[c] else
+                            'Seed' if 'Seed' in cluster_labels[c] else
+                            'Box' if 'Box' in cluster_labels[c] else 'Zoom'), '#94A3B8'))
+
+# === 大图布局 ===
+fig = plt.figure(figsize=(20, 9))
+gs = fig.add_gridspec(1, 2, width_ratios=[6, 4], wspace=0.04)
+
+# ── 左：PCA 散点图 ──
+ax = fig.add_subplot(gs[0, 0])
+
+# 气泡大小上限（避免 ES 等超大点失控）
+size_raw = country_features['评论数'].clip(upper=1000)
+sizes = 20 + (size_raw / size_raw.max()) * 280
+
 for cid in range(4):
     members = country_features[country_features['cluster'] == cid]
-    axes[0].scatter(members['pca_x'], members['pca_y'], c=colors[cid], label=cluster_labels[cid],
-                    s=members['评论数']/10, alpha=0.7, edgecolors='white', linewidth=0.5)
-    # 标注TOP5国家
-    for _, row in members.nlargest(5, '评论数').iterrows():
-        axes[0].annotate(row['buyerCountry'], (row['pca_x'], row['pca_y']),
-                         fontsize=8, ha='center', va='bottom', alpha=0.85)
+    tag = ('Star' if 'Star' in cluster_labels[cid] else
+           'Seed' if 'Seed' in cluster_labels[cid] else
+           'Box' if 'Box' in cluster_labels[cid] else 'Zoom')
+    c = PALETTE[tag]
+    ax.scatter(members['pca_x'], members['pca_y'], s=sizes[members.index],
+               c=c, alpha=0.72, edgecolors='white', linewidth=0.6,
+               zorder=3)
 
-axes[0].set_title(f"PCA 降维可视化 ({len(country_features)}个国家, 4个聚类)")
-axes[0].set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)")
-axes[0].set_ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)")
-axes[0].legend(fontsize=11, loc='lower right')
-axes[0].grid(alpha=0.2)
+# 每聚类 TOP3 标注
+for cid in range(4):
+    members = country_features[country_features['cluster'] == cid]
+    tag = ('Star' if 'Star' in cluster_labels[cid] else
+           'Seed' if 'Seed' in cluster_labels[cid] else
+           'Box' if 'Box' in cluster_labels[cid] else 'Zoom')
+    for _, row in members.nlargest(3, '评论数').iterrows():
+        ax.annotate(row['buyerCountry'],
+                    (row['pca_x'], row['pca_y']),
+                    fontsize=10, fontweight='bold', color='#1E293B',
+                    ha='center', va='bottom',
+                    xytext=(0, 7), textcoords='offset points',
+                    bbox=dict(boxstyle='round,pad=0.25', facecolor='white',
+                              edgecolor='none', alpha=0.82))
 
-# 右图：雷达图（聚类轮廓）
-axes[1].axis('off')
-conclusion_text = ("\n\n  KMeans 市场聚类结论\n\n"
-    f"  *  K=4 聚类，覆盖 {len(country_features)} 个国家\n\n"
-    "  *  成熟高价值市场（高评分+高活跃）:\n"
-    "     推荐重点投入，做品牌化运营\n\n"
-    "  *  潜力精品市场（高评分+低活跃）:\n"
-    "     评论少但质量高，适合新品试水\n\n"
-    "  *  价格敏感大市场（低评分+高活跃）:\n"
-    "     价格/物流是主要决策因素\n\n"
-    "  *  长尾探索市场（低评分+低活跃）:\n"
-    "     暂不推荐重点投入，观察\n\n"
-    "  ML 算法: KMeans + PCA 降维\n"
-    "  与 LDA 主题模型互补,\n"
-    "  一个做文本聚类，一个做用户分群")
-axes[1].text(0.05, 0.95, conclusion_text, fontsize=11, transform=axes[1].transAxes,
-             verticalalignment='top', linespacing=1.6,
-             bbox=dict(boxstyle='round,pad=0.8', facecolor='#f8f9fa', edgecolor='#ccd0d5', linewidth=1.5))
+# 坐标轴 & 网格轻量化
+ax.set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)",
+              fontsize=12, color='#64748B', labelpad=10)
+ax.set_ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)",
+              fontsize=12, color='#64748B', labelpad=10)
+ax.tick_params(labelsize=10, colors='#94A3B8', length=0)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.spines['left'].set_color('#E2E8F0')
+ax.spines['bottom'].set_color('#E2E8F0')
+ax.grid(True, axis='y', color='#F1F5F9', linewidth=0.8)
+ax.grid(True, axis='x', color='#F1F5F9', linewidth=0.8)
 
-plt.tight_layout(rect=[0, 0, 1, 0.94])
-plt.savefig("../charts/kmeans_country_clusters.png", dpi=150, bbox_inches='tight')
+# 图例 — 图表底部，左对齐，带业务含义
+legend_elements = []
+legend_order = ['Star', 'Box', 'Seed', 'Zoom']
+for tag in legend_order:
+    legend_elements.append(
+        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=PALETTE[tag],
+                   markersize=11, label=f"{LABEL_FULL[tag]} ({tag})"))
+leg = ax.legend(handles=legend_elements, loc='lower left', fontsize=11,
+                frameon=True, edgecolor='#E2E8F0', facecolor='white',
+                title=None, ncol=2, columnspacing=1.2, handletextpad=0.6)
+leg.get_frame().set_linewidth(0.8)
+
+# 气泡大小说明
+ax.text(0.98, 0.02, '气泡大小 = 评论规模', transform=ax.transAxes,
+        fontsize=9, color='#94A3B8', ha='right', va='bottom')
+
+# ── 右：四张分类卡片 ──
+ax_r = fig.add_subplot(gs[0, 1])
+ax_r.axis('off')
+
+card_data = []
+for tag in legend_order:
+    cid = [k for k, v in cluster_labels.items() if tag in v][0]
+    n_countries = cluster_profiles.loc[cid, '国家数']
+    avg_review = cluster_profiles.loc[cid, '平均评论数']
+    members = country_features[country_features['cluster'] == cid].nlargest(3, '评论数')['buyerCountry'].tolist()
+    card_data.append({
+        'tag': tag, 'full': LABEL_FULL[tag], 'desc': LABEL_DESC[tag],
+        'color': PALETTE[tag], 'n_countries': n_countries,
+        'avg_review': avg_review, 'top3': ', '.join(members),
+    })
+
+# 绘制卡片
+card_h = 0.185
+card_gap = 0.02
+card_top = 0.92
+
+for i, c in enumerate(card_data):
+    y0 = card_top - i * (card_h + card_gap)
+    # 色条
+    rect = plt.Rectangle((0.04, y0 - 0.008), 0.035, card_h, facecolor=c['color'],
+                          transform=ax_r.transAxes, clip_on=False, zorder=2)
+    ax_r.add_patch(rect)
+    # 卡片背景
+    rect_bg = plt.Rectangle((0.08, y0 - card_h), 0.88, card_h, facecolor='#F8FAFC',
+                             edgecolor='#E2E8F0', linewidth=0.8, transform=ax_r.transAxes,
+                             zorder=1)
+    ax_r.add_patch(rect_bg)
+    # 分类名
+    ax_r.text(0.12, y0 - 0.03, f'{c["full"]} ({c["tag"]})', transform=ax_r.transAxes,
+              fontsize=14, fontweight='bold', color='#1E293B', va='top')
+    # 特征描述
+    ax_r.text(0.12, y0 - 0.08, c['desc'], transform=ax_r.transAxes,
+              fontsize=11.5, color='#64748B', va='top')
+    # 数据
+    ax_r.text(0.12, y0 - 0.135, f'{c["n_countries"]} 个国家 · 均值 {c["avg_review"]:.0f} 条 · TOP: {c["top3"]}',
+              transform=ax_r.transAxes, fontsize=10, color='#94A3B8', va='top')
+
+# 底部算法说明
+ax_r.text(0.5, 0.01, 'ML 算法: KMeans + PCA 降维 · 与 LDA 主题聚类互补（文本 + 用户双维度）',
+          transform=ax_r.transAxes, fontsize=10, color='#CBD5E1', ha='center', va='bottom')
+
+# === 全局标题 ===
+fig.suptitle('KMeans 国家分群 — 跨境电商消费市场聚类分析', fontsize=20, fontweight='bold',
+             color='#1E293B', y=0.985)
+fig.text(0.5, 0.96, f'PCA 降维可视化 · {len(country_features)} 个国家 · 4 个聚类',
+         ha='center', fontsize=12, color='#94A3B8')
+
+plt.subplots_adjust(top=0.93, bottom=0.02, left=0.04, right=0.99, wspace=0.03)
+plt.savefig("../charts/kmeans_country_clusters.png", dpi=150, bbox_inches='tight',
+            facecolor='white', edgecolor='none')
 print("   KMeans 可视化已保存: charts/kmeans_country_clusters.png")
 
 # ============================================================
