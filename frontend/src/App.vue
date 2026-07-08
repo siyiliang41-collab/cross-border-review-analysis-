@@ -8,6 +8,7 @@ const selectedPid = ref('3256805677493085')
 const selectedCountry = ref('')
 const activeMenu = ref('overview')
 const marketRanking = ref([])  // TOP5 国家推荐排名
+const allCountryOptions = ref([])  // 全量国家列表（用于下拉框）
 const allData = ref({})
 
 const menus = [
@@ -174,6 +175,10 @@ async function loadAll(){
   }
 
   marketRanking.value=details
+  // 全量国家下拉选项（含所有有数据的国家，不止TOP5）
+  allCountryOptions.value=productMatrix
+    .map(r=>({country:r.buyer_country, avgStar:Math.round((r.avg_star||0)*100)/100}))
+    .sort((a,b)=>b.avgStar-a.avgStar)
   // 修复右侧悬浮卡
   liveMetrics.value={
     totalReviews:details.reduce((s,c)=>s+(c.reviewCount||0),0),
@@ -198,7 +203,7 @@ async function loadCountryDetail(){
       apiGet(API+'/matrix'),
     ])
     const cm=mr.data.filter(r=>r.buyer_country===cid&&r.product_id===pid)[0]
-    if(!cm||(cm.review_count||0)===0){countryDetail.value=null;return}
+    if(!cm||(cm.review_count||0)===0){countryDetail.value={noData:true, cnName:getCountryName(cid), name:productNames[pid]};return}
     const cf=fr.data||[];const ct=tr.data||[];const cs=sr.data||[]
     const fPos=cf.filter(isPositiveFeature);const fNeg=cf.filter(isNegativeFeature)
     const lTrend=ct.slice(-3)
@@ -255,7 +260,7 @@ function renderCharts(){
 
 }
 
-watch(selectedPid,()=>loadAll())
+watch(selectedPid,()=>{selectedCountry.value='';loadAll()})
 watch(activeMenu,(tab)=>{
   if(tab==='quality'){loadQuality().catch(e=>console.error('[质量报告加载失败]',e))}
   nextTick(()=>renderCharts())
@@ -362,9 +367,10 @@ async function loadQuality(){
         <div style="margin-top:16px;padding:14px 18px;background:#fafafa;border-radius:10px">
           <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">🔍 选择国家查看深度洞察</div>
           <select v-model="selectedCountry" class="tb-sel" style="color:#333;background:#fff;border:1px solid #ddd;padding:8px 16px;border-radius:6px;font-size:14px;width:200px;margin-bottom:12px">
-            <option value="">— 选择国家 —</option><option v-for="r in marketRanking" :key="r.country" :value="r.country">{{ getCountryName(r.country) }} (⭐{{ r.avgStar }})</option>
+            <option value="">— 选择国家 —</option><option v-for="r in allCountryOptions" :key="r.country" :value="r.country">{{ getCountryName(r.country) }} (⭐{{ r.avgStar }})</option>
           </select>
-          <div v-if="countryDetail" style="margin-top:10px">
+          <div v-if="countryDetail&&countryDetail.noData" style="text-align:center;padding:30px;color:#e65100;font-size:14px">⚠️ {{ countryDetail.cnName }} 目前在「{{ countryDetail.name }}」品类暂无评论数据</div>
+          <div v-else-if="countryDetail" style="margin-top:10px">
             <div class="country-card" style="margin-bottom:10px">
               <div class="cc-hd"><span class="cc-flag">{{ countryDetail.cnName }}</span> 市场深度洞察 — {{ countryDetail.name }}</div>
               <div class="cc-body">
