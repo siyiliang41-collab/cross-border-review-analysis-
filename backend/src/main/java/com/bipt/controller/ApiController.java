@@ -157,7 +157,7 @@ public class ApiController {
         Map<String, Object> overview = jdbc.queryForMap(
             "SELECT " +
             "(SELECT COUNT(DISTINCT product_id) FROM ads_product_rating) AS product_count, " +
-            "(SELECT COUNT(DISTINCT buyer_country) FROM ads_country_top15) AS country_count, " +
+            "(SELECT COUNT(DISTINCT buyer_country) FROM ads_sentiment_detail) AS country_count, " +
             "(SELECT SUM(total) FROM ads_sentiment_product) AS total_reviews"
         );
         report.put("overview", overview);

@@ -124,8 +124,7 @@ async function loadAll(){
   const pid=selectedPid.value;const cid=selectedCountry.value
   const r=await apiGet(`${API}/decision/${pid}`)
   decision.value=r.data;const decisionResp=r.data
-  const topRec=decisionResp.scorecard?decisionResp.scorecard[0]:null
-  liveMetrics.value={totalReviews:decisionResp.sentiment?.total||0,posRate:decisionResp.sentiment?.pos_rate||0,todayRec:topRec?productNames[topRec.product_id]:'--'}
+  liveMetrics.value={totalReviews:decisionResp.sentiment?.total||0,posRate:decisionResp.sentiment?.pos_rate||0,todayRec:'--'}
 
   const [matrix,logistics,sentiment,scorecard,feats,trend,sku]=await Promise.all([
     apiGet(API+'/matrix'),apiGet(API+'/logistics'),
@@ -305,7 +304,7 @@ async function loadQuality(){
           <div class="card"><div class="ctitle">📦 数据资产概览</div>
             <div class="qa-grid" v-if="qualityReport">
               <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.product_count }}</span><span class="qa-lbl">商品品类</span></div>
-              <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.country_count }}</span><span class="qa-lbl">国家数量</span></div>
+              <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.country_count }}</span><span class="qa-lbl">TOP国家覆盖</span></div>
               <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.total_reviews.toLocaleString() }}</span><span class="qa-lbl">有效评论数</span></div>
               <div class="qa-item"><span class="qa-num">{{ qualityReport.timeSpan.months }}个月</span><span class="qa-lbl">{{ qualityReport.timeSpan.earliest }} ~ {{ qualityReport.timeSpan.latest }}</span></div>
             </div>

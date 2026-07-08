@@ -25,7 +25,7 @@
 │  数据采集层     Python 爬虫 + MD5 签名 + 断点续爬    │
 │  存储治理层     HDFS HA + Hive 四层数仓(ODS→DWD→DWS→ADS)│
 │  分析计算层     Spark SQL + VADER 情感 + LDA 主题聚类  │
-│  数据同步层     Spark JDBC → MySQL 14 张 ADS 表     │
+│  数据同步层     Spark JDBC → MySQL 13 张 ADS 表（Hive/数仓共 14 张）     │
 │  后端服务层     SpringBoot 3.2 + 16 个 REST API     │
 │  前端可视层     Vue3 + ECharts 4Tab 大屏            │
 └──────────────────────────────────────────────────┘
