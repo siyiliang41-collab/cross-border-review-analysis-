@@ -114,7 +114,7 @@ for cid in range(4):
     print(f"  {cluster_labels[cid]} (聚类{cid}): {', '.join(names)}")
 
 # ============================================================
-# 4. PCA 降维可视化（全新设计）
+# 4. PCA + 可视化
 # ============================================================
 print(f"\n[4/5] PCA 降维可视化...")
 
@@ -123,152 +123,126 @@ X_pca = pca.fit_transform(X_scaled)
 country_features['pca_x'] = X_pca[:, 0]
 country_features['pca_y'] = X_pca[:, 1]
 
-# === 配色方案（业务语义） ===
-PALETTE = {'Star': '#5B3F9E', 'Seed': '#2E9B70', 'Box': '#E6A23C', 'Zoom': '#94A3B8'}
-LABEL_FULL = {
-    'Star': '成熟高价值市场',
-    'Seed': '潜力精品市场',
-    'Box':   '价格敏感大市场',
-    'Zoom':  '长尾探索市场',
+TAG_COLOR = {
+    'Star': '#5B3F9E',   # 深紫 — 成熟高价值
+    'Box':  '#D68B2C',   # 暖橙 — 价格敏感大市场
+    'Seed': '#2E9B70',   # 墨绿 — 潜力精品
+    'Zoom': '#333333',   # 灰蓝 — 长尾探索
 }
-LABEL_DESC = {
-    'Star': '高评分 + 高活跃 · 推荐重点投入',
-    'Seed': '高评分 + 低活跃 · 适合新品试水',
-    'Box':   '高活跃 + 评分适中 · 价格/物流是主导',
-    'Zoom':  '低活跃 + 低评分 · 暂不推荐重点投入',
+TAG_NAME = {
+    'Star': '成熟高价值市场', 'Box': '价格敏感大市场',
+    'Seed': '潜力精品市场',   'Zoom': '长尾探索市场',
+}
+TAG_DESC = {
+    'Star': '高评分·高活跃 — 推荐重点投入',
+    'Box':  '高活跃·中评分 — 价格/物流主导',
+    'Seed': '高评分·低活跃 — 适合新品试水',
+    'Zoom': '低活跃·低评分 — 暂不推荐',
 }
 
-# 聚类标签统一为中文+代号格式
-for cid, orig in cluster_labels.items():
-    if 'Star' in orig: cluster_labels[cid] = '成熟高价值 (Star)'
-    elif 'Seed' in orig: cluster_labels[cid] = '潜力精品 (Seed)'
-    elif 'Box' in orig: cluster_labels[cid] = '价格敏感 (Box)'
-    elif 'Zoom' in orig: cluster_labels[cid] = '长尾探索 (Zoom)'
+# ---- 把 cluster ID 映射到业务标签 ----
+cid_tag = {}
+for cid in range(4):
+    r = cluster_profiles.loc[cid]
+    if r['平均星评'] >= cluster_profiles['平均星评'].median() and r['平均评论数'] >= cluster_profiles['平均评论数'].median():
+        cid_tag[cid] = 'Star'
+    elif r['平均评论数'] >= cluster_profiles['平均评论数'].median():
+        cid_tag[cid] = 'Box'
+    elif r['平均星评'] >= cluster_profiles['平均星评'].median():
+        cid_tag[cid] = 'Seed'
+    else:
+        cid_tag[cid] = 'Zoom'
 
-country_features['cluster_label'] = country_features['cluster'].map(cluster_labels)
-country_features['color'] = country_features['cluster'].apply(
-    lambda c: PALETTE.get(('Star' if 'Star' in cluster_labels[c] else
-                            'Seed' if 'Seed' in cluster_labels[c] else
-                            'Box' if 'Box' in cluster_labels[c] else 'Zoom'), '#94A3B8'))
+country_features['tag'] = country_features['cluster'].map(cid_tag)
 
-# === 大图布局 ===
-fig = plt.figure(figsize=(20, 9))
-gs = fig.add_gridspec(1, 2, width_ratios=[6, 4], wspace=0.04)
+# ---- 画布 ----
+fig = plt.figure(figsize=(20, 9.2))
 
-# ── 左：PCA 散点图 ──
-ax = fig.add_subplot(gs[0, 0])
+# 左右分割: 散点图(0~0.60) + 卡片列(0.64~0.92)
+ax = fig.add_axes([0.05, 0.10, 0.54, 0.78])
+ax_r = fig.add_axes([0.63, 0.10, 0.34, 0.78])
 
-# 气泡大小上限（避免 ES 等超大点失控）
-size_raw = country_features['评论数'].clip(upper=1000)
-sizes = 20 + (size_raw / size_raw.max()) * 280
+# ======== 左侧: PCA 散点图 ========
+# 气泡大小
+size_raw = country_features['评论数'].clip(upper=800)
+sizes = 20 + size_raw / size_raw.max() * 320
 
 for cid in range(4):
-    members = country_features[country_features['cluster'] == cid]
-    tag = ('Star' if 'Star' in cluster_labels[cid] else
-           'Seed' if 'Seed' in cluster_labels[cid] else
-           'Box' if 'Box' in cluster_labels[cid] else 'Zoom')
-    c = PALETTE[tag]
-    ax.scatter(members['pca_x'], members['pca_y'], s=sizes[members.index],
-               c=c, alpha=0.72, edgecolors='white', linewidth=0.6,
-               zorder=3)
+    mask = country_features['cluster'] == cid
+    ax.scatter(country_features.loc[mask, 'pca_x'],
+               country_features.loc[mask, 'pca_y'],
+               s=sizes[mask], c=TAG_COLOR[cid_tag[cid]],
+               alpha=0.78, edgecolors='white', linewidth=0.4, zorder=2)
 
-# 每聚类 TOP3 标注
+# TOP2 标注 — 标签颜色跟随聚类，只标2个避免拥挤
 for cid in range(4):
-    members = country_features[country_features['cluster'] == cid]
-    tag = ('Star' if 'Star' in cluster_labels[cid] else
-           'Seed' if 'Seed' in cluster_labels[cid] else
-           'Box' if 'Box' in cluster_labels[cid] else 'Zoom')
-    for _, row in members.nlargest(3, '评论数').iterrows():
+    mask = country_features['cluster'] == cid
+    top2 = country_features[mask].nlargest(2, '评论数')
+    for _, row in top2.iterrows():
         ax.annotate(row['buyerCountry'],
                     (row['pca_x'], row['pca_y']),
-                    fontsize=10, fontweight='bold', color='#1E293B',
-                    ha='center', va='bottom',
-                    xytext=(0, 7), textcoords='offset points',
-                    bbox=dict(boxstyle='round,pad=0.25', facecolor='white',
-                              edgecolor='none', alpha=0.82))
+                    fontsize=9.5, fontweight='bold',
+                    color=TAG_COLOR[cid_tag[cid]],
+                    ha='left', va='bottom',
+                    xytext=(6, 6), textcoords='offset points',
+                    bbox=dict(boxstyle='round,pad=0.2', facecolor='white',
+                              edgecolor='none', alpha=0.88))
 
-# 坐标轴 & 网格轻量化
-ax.set_xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)",
-              fontsize=12, color='#64748B', labelpad=10)
-ax.set_ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)",
-              fontsize=12, color='#64748B', labelpad=10)
-ax.tick_params(labelsize=10, colors='#94A3B8', length=0)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.spines['left'].set_color('#E2E8F0')
-ax.spines['bottom'].set_color('#E2E8F0')
-ax.grid(True, axis='y', color='#F1F5F9', linewidth=0.8)
-ax.grid(True, axis='x', color='#F1F5F9', linewidth=0.8)
+# 坐标轴
+ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}%)',
+              fontsize=14, fontweight='bold', color='#111111', labelpad=10)
+ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}%)',
+              fontsize=14, fontweight='bold', color='#111111', labelpad=10)
+ax.tick_params(labelsize=11, colors='#111111', pad=4)
+for spine in ['top','right']:
+    ax.spines[spine].set_visible(False)
+ax.spines['left'].set_color('#555555')
+ax.spines['bottom'].set_color('#555555')
+ax.set_axisbelow(True)
+ax.yaxis.grid(True, color='#DDDDDD', linewidth=0.6)
+# 右下角气泡说明
+ax.text(0.98, 0.025, '● 大小 = 评论规模', transform=ax.transAxes,
+        fontsize=9, color='#333333', ha='right', va='bottom')
 
-# 图例 — 图表底部，左对齐，带业务含义
-legend_elements = []
-legend_order = ['Star', 'Box', 'Seed', 'Zoom']
-for tag in legend_order:
-    legend_elements.append(
-        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=PALETTE[tag],
-                   markersize=11, label=f"{LABEL_FULL[tag]} ({tag})"))
-leg = ax.legend(handles=legend_elements, loc='lower left', fontsize=11,
-                frameon=True, edgecolor='#E2E8F0', facecolor='white',
-                title=None, ncol=2, columnspacing=1.2, handletextpad=0.6)
-leg.get_frame().set_linewidth(0.8)
-
-# 气泡大小说明
-ax.text(0.98, 0.02, '气泡大小 = 评论规模', transform=ax.transAxes,
-        fontsize=9, color='#94A3B8', ha='right', va='bottom')
-
-# ── 右：四张分类卡片 ──
-ax_r = fig.add_subplot(gs[0, 1])
+# ======== 右侧: 四张业务卡片（色点+三级信息，代替图例）=======
 ax_r.axis('off')
 
-card_data = []
-for tag in legend_order:
-    cid = [k for k, v in cluster_labels.items() if tag in v][0]
-    n_countries = cluster_profiles.loc[cid, '国家数']
-    avg_review = cluster_profiles.loc[cid, '平均评论数']
-    members = country_features[country_features['cluster'] == cid].nlargest(3, '评论数')['buyerCountry'].tolist()
-    card_data.append({
-        'tag': tag, 'full': LABEL_FULL[tag], 'desc': LABEL_DESC[tag],
-        'color': PALETTE[tag], 'n_countries': n_countries,
-        'avg_review': avg_review, 'top3': ', '.join(members),
-    })
+BUSINESS_RANK = ['Star', 'Box', 'Seed', 'Zoom']
+# 国家代码→中文翻译（仅卡片使用，散点图不变）
+CN_MAP = {'ES':'西班牙','UA':'乌克兰','FR':'法国','US':'美国','GB':'英国','KR':'韩国','BR':'巴西','IT':'意大利','MX':'墨西哥','PL':'波兰','DE':'德国','RU':'俄罗斯','NL':'荷兰','TR':'土耳其','JP':'日本','IL':'以色列','CL':'智利','CA':'加拿大','AU':'澳大利亚','PT':'葡萄牙','BE':'比利时','SE':'瑞典','AT':'奥地利','MZ':'莫桑比克','ET':'埃塞俄比亚','TH':'泰国','BY':'白俄罗斯','NG':'尼日利亚','VN':'越南','OM':'阿曼','AL':'阿尔巴尼亚','MK':'北马其顿','PA':'巴拿马','AR':'阿根廷','CO':'哥伦比亚','PE':'秘鲁','ZA':'南非','SG':'新加坡','CZ':'捷克','RO':'罗马尼亚','HU':'匈牙利','GR':'希腊','DK':'丹麦','NO':'挪威','FI':'芬兰','IE':'爱尔兰','NZ':'新西兰','SA':'沙特','AE':'阿联酋','PH':'菲律宾','MY':'马来西亚','ID':'印度尼西亚','KE':'肯尼亚','MA':'摩洛哥','EG':'埃及','BG':'保加利亚','HR':'克罗地亚','SK':'斯洛伐克','SI':'斯洛文尼亚','LT':'立陶宛','LV':'拉脱维亚','EE':'爱沙尼亚','CY':'塞浦路斯','MT':'马耳他','LU':'卢森堡','IS':'冰岛'}
+for i, tag in enumerate(BUSINESS_RANK):
+    cid = [k for k, v in cid_tag.items() if v == tag][0]
+    c = TAG_COLOR[tag]
+    star = cluster_profiles.loc[cid, '平均星评']
+    n_ctry = int(cluster_profiles.loc[cid, '国家数'])
+    n_rev = cluster_profiles.loc[cid, '平均评论数']
+    top3_codes = country_features[country_features['cluster'] == cid].nlargest(3, '评论数')['buyerCountry'].tolist()
+    top3_cn = '/'.join(CN_MAP.get(code, code) for code in top3_codes)
 
-# 绘制卡片
-card_h = 0.185
-card_gap = 0.02
-card_top = 0.92
+    y_top = 0.94 - i * 0.22
 
-for i, c in enumerate(card_data):
-    y0 = card_top - i * (card_h + card_gap)
-    # 色条
-    rect = plt.Rectangle((0.04, y0 - 0.008), 0.035, card_h, facecolor=c['color'],
-                          transform=ax_r.transAxes, clip_on=False, zorder=2)
+    # 卡片背景（窄一些，宽度0.85）
+    rect = plt.Rectangle((0.0, y_top - 0.20), 0.85, 0.19, facecolor='#F4F4F4', edgecolor='#999999', linewidth=0.7, transform=ax_r.transAxes, zorder=0)
     ax_r.add_patch(rect)
-    # 卡片背景
-    rect_bg = plt.Rectangle((0.08, y0 - card_h), 0.88, card_h, facecolor='#F8FAFC',
-                             edgecolor='#E2E8F0', linewidth=0.8, transform=ax_r.transAxes,
-                             zorder=1)
-    ax_r.add_patch(rect_bg)
-    # 分类名
-    ax_r.text(0.12, y0 - 0.03, f'{c["full"]} ({c["tag"]})', transform=ax_r.transAxes,
-              fontsize=14, fontweight='bold', color='#1E293B', va='top')
-    # 特征描述
-    ax_r.text(0.12, y0 - 0.08, c['desc'], transform=ax_r.transAxes,
-              fontsize=11.5, color='#64748B', va='top')
-    # 数据
-    ax_r.text(0.12, y0 - 0.135, f'{c["n_countries"]} 个国家 · 均值 {c["avg_review"]:.0f} 条 · TOP: {c["top3"]}',
-              transform=ax_r.transAxes, fontsize=10, color='#94A3B8', va='top')
 
-# 底部算法说明
-ax_r.text(0.5, 0.01, 'ML 算法: KMeans + PCA 降维 · 与 LDA 主题聚类互补（文本 + 用户双维度）',
-          transform=ax_r.transAxes, fontsize=10, color='#CBD5E1', ha='center', va='bottom')
+    # L1: ●圆点 + 分类名（同行）
+    ax_r.plot(0.06, y_top - 0.035, 'o', color=c, markersize=14, transform=ax_r.transAxes, clip_on=False)
+    ax_r.text(0.14, y_top - 0.035, TAG_NAME[tag], transform=ax_r.transAxes, fontsize=16, fontweight='bold', color='#1E293B', va='center')
+    # L2: 特征描述
+    ax_r.text(0.14, y_top - 0.095, TAG_DESC[tag], transform=ax_r.transAxes, fontsize=12, color='#333333', va='center')
+    # L3: 数据（TOP国家翻译为中文）
+    ax_r.text(0.14, y_top - 0.155, f'{n_ctry}国 · 均{n_rev:.0f}评 · 星评{star:.2f} · TOP: {top3_cn}', transform=ax_r.transAxes, fontsize=11, color='#555555', va='center')
 
-# === 全局标题 ===
-fig.suptitle('KMeans 国家分群 — 跨境电商消费市场聚类分析', fontsize=20, fontweight='bold',
-             color='#1E293B', y=0.985)
-fig.text(0.5, 0.96, f'PCA 降维可视化 · {len(country_features)} 个国家 · 4 个聚类',
-         ha='center', fontsize=12, color='#94A3B8')
+# 底部算法注释
+ax_r.text(0.5, 0.01, 'ML: KMeans + PCA  ·  与 LDA 构成文本 + 用户双维度聚类',
+          transform=ax_r.transAxes, fontsize=9, color='#555555', ha='center')
 
-plt.subplots_adjust(top=0.93, bottom=0.02, left=0.04, right=0.99, wspace=0.03)
+# ======== 全局标题 ========
+fig.suptitle('KMeans 国家分群 — 跨境电商消费市场聚类分析',
+             fontsize=21, fontweight='bold', color='#0F172A', y=1.015)
+fig.text(0.5, 0.955, f'PCA 降维可视化  ·  {len(country_features)} 个国家  ·  K=4 聚类  ·  气泡 = 评论规模',
+         ha='center', fontsize=12, color='#1E293B')
+
 plt.savefig("../charts/kmeans_country_clusters.png", dpi=150, bbox_inches='tight',
             facecolor='white', edgecolor='none')
 print("   KMeans 可视化已保存: charts/kmeans_country_clusters.png")
