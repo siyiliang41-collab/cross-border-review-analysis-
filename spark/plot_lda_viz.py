@@ -47,25 +47,19 @@ for ax, (label, words) in zip(axes.flatten()[:5], topics.items()):
     for bar, val in zip(bars, values):
         ax.text(bar.get_width()+0.002, bar.get_y()+bar.get_height()/2, f'{val:.2f}', va='center', fontsize=9)
 
-# 右下第6格 — 宽大的分析结论框
+# 右下第6格 — 精简版分析结论（适合PPT展示）
 axes[1, 2].axis('off')
-conclusion = ("\n\n  LDA 分析结论\n\n"
-    "  *  从 1,787 条低分评论中,\n"
-    "     LDA 自动聚类出 5 个痛点主题\n\n"
-    "  *  蓝牙耳机最大痛点:\n"
-    "     音质差 & 商品损坏 (各 250 条)\n\n"
-    "  *  LED 灯主要投诉:\n"
-    "     尺寸太小 / 与图片不符 (249 条)\n\n"
-    "  *  手机壳主要投诉:\n"
-    "     材质廉价 & iPhone 适配错误\n\n"
-    "  *  油壶投诉集中在:\n"
-    "     到货损坏 & 材质廉价\n\n"
-    "  *  无监督 ML 成功落地,\n"
-    "     满足课程核心阶段要求")
+conclusion = ("\n\n  LDA 无监督聚类分析结论\n\n"
+    "  *  从 1,787 条低分评论自动发现 5 个痛点主题\n\n"
+    "  *  蓝牙耳机: 音质差 & 商品损坏 (各 250 条)\n\n"
+    "  *  LED 灯: 尺寸太小/与图片不符 (249 条)\n\n"
+    "  *  手机壳: 材质廉价 & 适配错误\n\n"
+    "  样本标准: starRating <= 2 且有英文翻译评论\n"
+    "  模型困惑度: 388.5")
 
 axes[1, 2].text(0.05, 0.95, conclusion, fontsize=12, transform=axes[1, 2].transAxes,
                 verticalalignment='top', linespacing=2.0,
-                bbox=dict(boxstyle='round,pad=1.2', facecolor='#f8f9fa', edgecolor='#ccd0d5', linewidth=1.5))
+                bbox=dict(boxstyle='round,pad=1.0', facecolor='#f8f9fa', edgecolor='#ccd0d5', linewidth=1.5))
 
 plt.tight_layout(rect=[0, 0, 1, 0.94])
 plt.savefig("../charts/lda_topics.png", dpi=150, bbox_inches='tight')

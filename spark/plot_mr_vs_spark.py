@@ -20,13 +20,13 @@ spark_times = [4.819, 0.968, 1.362]
 speedup    = [22.162/4.819, 24.941/0.968, 23.860/1.362]
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
-fig.suptitle('MR vs Spark WordCount 性能对比（3节点24GB YARN集群）', fontsize=16, fontweight='bold')
+fig.suptitle('MR (YARN) vs Spark (local[*]) — WordCount 性能对比', fontsize=16, fontweight='bold')
 
 # 左图：并排柱状图
 x = np.arange(len(datasets))
 width = 0.35
 bars1 = axes[0].bar(x - width/2, mr_times, width, label='MapReduce (YARN)', color='#ff6d00', edgecolor='white')
-bars2 = axes[0].bar(x + width/2, spark_times, width, label='Spark (本地模式)', color='#2979ff', edgecolor='white')
+bars2 = axes[0].bar(x + width/2, spark_times, width, label='Spark (local[*])', color='#2979ff', edgecolor='white')
 axes[0].set_ylabel('耗时 (秒)')
 axes[0].set_title('WordCount 耗时对比')
 axes[0].set_xticks(x)
@@ -51,9 +51,9 @@ for i, (d, s) in enumerate(zip(datasets, speedup)):
     axes[1].annotate(f'{s:.1f}x', (d, s), textcoords="offset points", xytext=(0,14),
                      ha='center', fontsize=13, fontweight='bold', color='#00c853')
 
-# 底部结论文字
-fig.text(0.5, 0.02, '结论: MR主要开销在YARN容器启动(~20s)；Spark首次冷启动后后续计算秒级完成。\nHive管元数据 + Spark做计算引擎是企业湖仓一体架构的最佳实践',
-         ha='center', fontsize=12, color='#555', bbox=dict(boxstyle='round,pad=0.5', facecolor='#f5f5f5', edgecolor='#ddd'))
+# 底部结论文字（精简版，适合PPT）
+fig.text(0.5, 0.02, '注：Spark 第1组(1k)含JVM/SparkSession冷启动开销(~4s)，后续组复用内存，1万条仅需1.0s。\nMR固定开销约20s(YARN容器调度+序列化+磁盘溢写)，几乎不随数据量增长。',
+         ha='center', fontsize=11, color='#555', bbox=dict(boxstyle='round,pad=0.5', facecolor='#f5f5f5', edgecolor='#ddd'))
 
 plt.tight_layout(rect=[0, 0.08, 1, 0.95])
 plt.savefig("../charts/mr_vs_spark.png", dpi=150, bbox_inches='tight')
