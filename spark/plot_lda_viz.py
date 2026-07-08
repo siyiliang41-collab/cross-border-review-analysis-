@@ -8,7 +8,7 @@
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.gridspec import GridSpec
 
 plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -20,21 +20,20 @@ topics = {
     "主题4\n材质廉价": {"received":0.12, "cheap":0.11, "color":0.10, "photo":0.09, "plastic":0.09, "won":0.08, "case":0.07, "broke":0.06},
     "主题5\n适配错误": {"didn":0.12, "good":0.11, "fit":0.11, "don":0.10, "ordered":0.08, "arrived":0.07, "iphone":0.06, "item":0.05},
 }
+topic_labels = list(topics.keys())
 
-pain_data = {
-    "尺寸不符":    [0,  249, 0,   0,  35],
-    "商品损坏":    [250,185, 0,   55, 0],
-    "音质/质量差": [250,0,   61,  40, 0],
-    "材质廉价":    [0,  0,   87,  36, 45],
-    "适配错误":    [125,141, 83,  0,  57],
-}
-products = ["蓝牙耳机", "LED小夜灯", "手机壳", "油壶", "连衣裙"]
+fig = plt.figure(figsize=(18, 10))
+gs = GridSpec(2, 4, width_ratios=[1, 1, 1, 1.4], figure=fig)
+fig.suptitle("LDA 主题模型 — 负面评论痛点聚类分析", fontsize=16, fontweight='bold', x=0.5)
 
-fig, axes = plt.subplots(2, 3, figsize=(16, 10))
-fig.suptitle("LDA 主题模型 — 负面评论痛点聚类分析", fontsize=16, fontweight='bold')
+# 上排：前3个主题 (0,0) (0,1) (0,2)
+for idx, (label, words) in enumerate(topics.items()):
+    if idx < 3:
+        row, col = 0, idx
+    else:
+        row, col = 1, idx - 3  # 下排：第4和第5个主题 (1,0) (1,1)
 
-# 5个主题词频柱状图
-for ax, (label, words) in zip(axes.flatten()[:5], topics.items()):
+    ax = fig.add_subplot(gs[row, col])
     names = list(words.keys())
     values = list(words.values())
     colors = ['#1565c0','#1976d2','#1e88e5','#2196f3','#42a5f5','#64b5f6','#90caf9','#bbdefb']
@@ -47,21 +46,22 @@ for ax, (label, words) in zip(axes.flatten()[:5], topics.items()):
     for bar, val in zip(bars, values):
         ax.text(bar.get_width()+0.002, bar.get_y()+bar.get_height()/2, f'{val:.2f}', va='center', fontsize=9)
 
-# 右下第6格 — 精简版分析结论（适合PPT展示）
-axes[1, 2].axis('off')
+# 分析结论框，占第4列（宽1.4倍）上下两行
+ax_conclusion = fig.add_subplot(gs[:, 3])
+ax_conclusion.axis('off')
 conclusion = ("\n\n  LDA 无监督聚类分析结论\n\n"
     "  *  从 1,787 条低分评论自动发现 5 个痛点主题\n\n"
     "  *  蓝牙耳机: 音质差 & 商品损坏 (各 250 条)\n\n"
-    "  *  LED 灯: 尺寸太小/与图片不符 (249 条)\n\n"
-    "  *  手机壳: 材质廉价 & 适配错误 (87/84 条)\n\n"
+    "  *  LED 灯: 尺寸太小 / 与图片不符 (249 条)\n\n"
+    "  *  手机壳: 材质廉价 & 适配错误 (87 / 84 条)\n\n"
     "  *  油壶: 到货损坏 & 材质廉价\n\n"
     "  *  连衣裙: 适配错误 & 尺寸不符\n\n"
     "  样本标准: starRating <= 2 且有英文翻译评论\n"
     "  模型困惑度: 388.5")
 
-axes[1, 2].text(0.05, 0.95, conclusion, fontsize=12, transform=axes[1, 2].transAxes,
-                verticalalignment='top', linespacing=2.0,
-                bbox=dict(boxstyle='round,pad=1.0', facecolor='#f8f9fa', edgecolor='#ccd0d5', linewidth=1.5))
+ax_conclusion.text(0.06, 1.0, conclusion, fontsize=11, transform=ax_conclusion.transAxes,
+                verticalalignment='top', linespacing=1.5,
+                bbox=dict(boxstyle='round,pad=0.8', facecolor='#f8f9fa', edgecolor='#ccd0d5', linewidth=1.5))
 
 plt.tight_layout(rect=[0, 0, 1, 0.94])
 plt.savefig("../charts/lda_topics.png", dpi=150, bbox_inches='tight')
