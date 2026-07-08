@@ -13,7 +13,7 @@ const allData = ref({})
 
 const menus = [
   {key:'overview',label:'数据概览',icon:'📊'},
-  {key:'sentiment',label:'情感分析',icon:'💬'},
+  {key:'product',label:'产品洞察',icon:'🔬'},
   {key:'decision',label:'市场洞察',icon:'🌍'},
   {key:'quality',label:'数据质量',icon:'🛡️'},
 ]
@@ -217,7 +217,23 @@ async function loadCountryDetail(){
     }
     nextTick(()=>{
       if(countryDetail.value&&countryDetail.value.trendData.length){
-        createChart('ch-d-trend',{tooltip:{trigger:'axis'},grid:{left:55,right:20,top:10,bottom:40},xAxis:{type:'category',data:ct.map(t=>t.month||t.eval_month),axisLabel:{color:'#333',fontSize:12,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#333',fontSize:12},min:2.5,max:5},series:[{type:'line',data:ct.map(t=>Math.round(t.avg_star*100)/100),smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#1677FF',width:2.5},itemStyle:{color:'#1677FF'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(22,119,255,0.2)'},{offset:1,color:'rgba(22,119,255,0.02)'}])}}]})
+        const vals=ct.map((t,i)=>({x:i, y:Math.round(t.avg_star*100)/100}))
+        const pred=lrPredict(vals)
+        const months=ct.map(t=>t.month||t.eval_month)
+        const actual=vals.map(v=>v.y)
+        const series=[{type:'line',name:'实际评分',data:actual,smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#1677FF',width:2.5},itemStyle:{color:'#1677FF'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(22,119,255,0.2)'},{offset:1,color:'rgba(22,119,255,0.02)'}])}}]
+        if(pred){
+          const predLine=months.map((_,i)=>pred.fitted[i]?Math.round(pred.fitted[i].y*10)/10:null)
+          predLine.push(null) // gap before prediction marker
+          // regression line
+          series.push({type:'line',name:'回归趋势',data:predLine.slice(0,-1),smooth:true,symbol:'none',lineStyle:{color:'#F53F3F',width:2,type:'dashed'}})
+          // prediction marker
+          const predArr=months.map(()=>null)
+          predArr.push(Math.round(pred.pred*10)/10)
+          series.push({type:'line',name:'预测',data:predArr,smooth:false,symbol:'diamond',symbolSize:14,lineStyle:{color:'#F53F3F',width:0},itemStyle:{color:'#F53F3F'}})
+          months.push('预测8月')
+        }
+        createChart('ch-d-trend',{tooltip:{trigger:'axis'},legend:{data:series.map(s=>s.name),textStyle:{color:'#333',fontSize:12},top:0},grid:{left:55,right:20,top:35,bottom:40},xAxis:{type:'category',data:months,axisLabel:{color:'#333',fontSize:12,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#333',fontSize:12},min:2.5,max:5},series})
       }
       if(cs.length>0){
         const sd=cs.slice(0,8)
@@ -229,33 +245,46 @@ async function loadCountryDetail(){
 }
 watch(selectedCountry,()=>loadCountryDetail())
 
+function lrPredict(points){
+  // 纯前端线性回归：输入 [{x,y},...] → 返回预测值 + 回归线数据
+  if(points.length<3)return null
+  const n=points.length,sx=points.reduce((s,p)=>s+p.x,0),sy=points.reduce((s,p)=>s+p.y,0)
+  const sxy=points.reduce((s,p)=>s+p.x*p.y,0),sx2=points.reduce((s,p)=>s+p.x*p.x,0)
+  const slope=(n*sxy-sx*sy)/(n*sx2-sx*sx)
+  const intercept=(sy-slope*sx)/n
+  const pred=slope*(n)+intercept  // 下月预测（n+1个点→x=n）
+  const fitted=points.map((p,i)=>({x:p.x, y:slope*i+intercept}))
+  return {slope,intercept,pred, fitted}
+}
+
 function renderCharts(){
-  clearAll();const data=allData.value;const currentTab=activeMenu.value
+  clearAll();const data=allData.value;const currentTab=activeMenu.value;const pid=selectedPid.value
 
   if(currentTab==='overview'){
-    // 情感趋势折线
+    // 趋势折线
     createChart('ch1',{tooltip:{trigger:'axis'},grid:{left:55,right:20,top:20,bottom:35},xAxis:{type:'category',data:data.trend.map(t=>t.month||t.eval_month),axisLabel:{color:'#889',fontSize:11,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#889',fontSize:11},min:3.5,max:5},series:[{type:'line',data:data.trend.map(t=>Math.round(t.avg_star*100)/100),smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#2979ff',width:2.5},itemStyle:{color:'#2979ff'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(41,121,255,0.25)'},{offset:1,color:'rgba(41,121,255,0.02)'}])}}]})
-
-    // 选品评分雷达
+    // 雷达
     createChart('ch2',{tooltip:{},legend:{data:productList.map(p=>p.name),textStyle:{color:'#889',fontSize:10},bottom:0},radar:{center:['50%','45%'],radius:'60%',indicator:[{name:'推荐指数',max:60},{name:'好评率(%)',max:30},{name:'情感均分',max:0.2},{name:'评论规模',max:4200},{name:'星评均分',max:5}],axisName:{color:'#889',fontSize:11}},series:data.scorecard.map((s,i)=>({type:'radar',data:[{value:[Math.round(s.recommendation_score*10)/10,s.sentiment_pos_rate,Math.round(s.avg_sentiment*1000)/1000,s.total_reviews,Math.round(s.star_score*100)/100],name:productNames[s.product_id]||''}],lineStyle:{color:['#2979ff','#ff6d00','#00c853','#d50000','#6200ea'][i],width:2},itemStyle:{color:['#2979ff','#ff6d00','#00c853','#d50000','#6200ea'][i]},areaStyle:{color:'transparent'}}))})
-
     // 热力图
     const topC=[...new Set(data.matrix.map(r=>r.buyer_country))].slice(0,10)
     const hd=[];topC.forEach((c,i)=>{productList.forEach((p,j)=>{const x=data.matrix.find(r=>r.buyer_country===c&&r.product_id===p.id);if(x)hd.push([j,i,Math.round(Number(x.avg_star||0)*100)/100])})})
     createChart('ch3',{tooltip:{formatter:p=>`${productList[p.value[0]]?.name} / ${getCountryName(topC[p.value[1]])}: ${Number(p.value[2]).toFixed(2)}分`},grid:{left:75,right:110,top:15,bottom:15},xAxis:{type:'category',data:productList.map(p=>p.name),axisLabel:{color:'#889',fontSize:11,rotate:20}},yAxis:{type:'category',data:topC.map(getCountryName),axisLabel:{color:'#889',fontSize:11}},visualMap:{min:3.5,max:5,text:['高','低'],textStyle:{color:'#889'},inRange:{color:['#e3f2fd','#90caf9','#42a5f5','#1e88e5','#1565c0']},calculable:true,orient:'vertical',right:10,top:'center',itemWidth:12,itemHeight:100},series:[{type:'heatmap',data:hd,label:{show:true,color:'#222',fontSize:11,fontWeight:'bold'}}]})
-
-    // 选品排名柱状
+    // 选品排名
     createChart('ch4',{tooltip:{trigger:'axis'},grid:{left:100,right:60,top:10,bottom:20},xAxis:{type:'value',name:'推荐指数',axisLabel:{color:'#889',fontSize:11}},yAxis:{type:'category',data:data.scorecard.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#333',fontSize:13,fontWeight:'bold'}},series:[{type:'bar',data:data.scorecard.map(s=>Math.round(s.recommendation_score*10)/10),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#2979ff'},{offset:1,color:'#82b1ff'}]),borderRadius:[0,4,4,0]},label:{show:true,position:'right',color:'#333',fontSize:13,fontWeight:'bold',formatter:'{c}分'},markLine:{symbol:'none',data:[{type:'average',label:{show:true,color:'#999',fontSize:10,position:'start',formatter:'均线{c}'}}],lineStyle:{color:'#bbb',type:'dashed'}}}]})
-
-    // 特征ABSA（数据概览Tab）
-    renderFeatureChart('ch5', data.feats)
+    // 情感正/中/负面率堆叠（从旧情感分析Tab搬过来）
+    const sp=data.sentiment
+    createChart('ch-ov-stack',{tooltip:{trigger:'axis'},legend:{data:['正面','中性','负面'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:55,right:30,top:30,bottom:30},xAxis:{type:'category',data:sp.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#889',fontSize:11,rotate:15}},yAxis:{type:'value',name:'%',min:0,max:100,axisLabel:{color:'#889',fontSize:11}},series:[{name:'正面',type:'bar',stack:'t',data:sp.map(s=>s.pos_rate),itemStyle:{color:'#00c853'},label:{show:true,color:'#fff',fontSize:10}},{name:'中性',type:'bar',stack:'t',data:sp.map(s=>Number(((s.total-s.pos_cnt-s.neg_cnt)*100/s.total).toFixed(1))),itemStyle:{color:'#ff9800'}},{name:'负面',type:'bar',stack:'t',data:sp.map(s=>Number((s.neg_cnt*100/s.total).toFixed(1))),itemStyle:{color:'#ff1744'}}]})
   }
 
-  if(currentTab==='sentiment'){
-    // 特征ABSA（情感分析Tab）
-    renderFeatureChart('ch-s2', data.feats)
-    const sp=data.sentiment
-    createChart('ch-s1',{tooltip:{trigger:'axis'},legend:{data:['正面','中性','负面'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:55,right:30,top:30,bottom:30},xAxis:{type:'category',data:sp.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#889',fontSize:11,rotate:15}},yAxis:{type:'value',name:'%',min:0,max:100,axisLabel:{color:'#889',fontSize:11}},series:[{name:'正面',type:'bar',stack:'t',data:sp.map(s=>s.pos_rate),itemStyle:{color:'#00c853'},label:{show:true,color:'#fff',fontSize:10}},{name:'中性',type:'bar',stack:'t',data:sp.map(s=>Number(((s.total-s.pos_cnt-s.neg_cnt)*100/s.total).toFixed(1))),itemStyle:{color:'#ff9800'}},{name:'负面',type:'bar',stack:'t',data:sp.map(s=>Number((s.neg_cnt*100/s.total).toFixed(1))),itemStyle:{color:'#ff1744'}}]})
+  if(currentTab==='product'){
+    // AB SA（当前选品）
+    renderFeatureChart('ch-pa', data.feats)
+    // 当前选品月度趋势
+    const pTrend=data.trend||[]
+    if(pTrend.length) createChart('ch-pt',{tooltip:{trigger:'axis'},grid:{left:55,right:20,top:10,bottom:40},xAxis:{type:'category',data:pTrend.map(t=>t.month||t.eval_month),axisLabel:{color:'#889',fontSize:11,rotate:45}},yAxis:{type:'value',name:'评分',axisLabel:{color:'#889',fontSize:11},min:2.5,max:5},series:[{type:'line',data:pTrend.map(t=>Math.round(t.avg_star*100)/100),smooth:true,symbol:'circle',symbolSize:6,lineStyle:{color:'#2979ff',width:2.5},itemStyle:{color:'#2979ff'},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(41,121,255,0.25)'},{offset:1,color:'rgba(41,121,255,0.02)'}])}}]})
+    // 当前选品情感环形图
+    const cs=data.sentiment.find(s=>s.product_id===pid)
+    if(cs) createChart('ch-pd',{tooltip:{trigger:'item'},legend:{orient:'vertical',left:'left',textStyle:{color:'#889',fontSize:12}},series:[{type:'pie',radius:['50%','75%'],center:['55%','50%'],avoidLabelOverlap:false,itemStyle:{borderRadius:4,borderColor:'#fff',borderWidth:2},label:{show:true,fontSize:13,fontWeight:'bold'},emphasis:{label:{show:true,fontSize:16,fontWeight:'bold'}},data:[{value:cs.pos_rate,name:'正面',itemStyle:{color:'#00c853'}},{value:Number(((cs.total-cs.pos_cnt-cs.neg_cnt)*100/cs.total).toFixed(1)),name:'中性',itemStyle:{color:'#ff9800'}},{value:Number((cs.neg_cnt*100/cs.total).toFixed(1)),name:'负面',itemStyle:{color:'#ff1744'}}]}]})
   }
 
 }
@@ -309,20 +338,42 @@ async function loadQuality(){
         <div class="card-row-3">
           <div class="card"><div class="ctitle">📈 情感分析趋势</div><div id="ch1" class="chart"></div></div>
           <div class="card"><div class="ctitle">🎯 选品决策支持评分</div><div id="ch2" class="chart"></div></div>
-          <div class="card"><div class="ctitle">🔍 {{ productNames[selectedPid] || '产品' }}特征分析</div><div id="ch5" class="chart"></div></div>
+          <div class="card"><div class="ctitle">📊 选品推荐排名</div><div id="ch4" class="chart"></div></div>
         </div>
         <div style="margin-bottom:16px"><div class="card"><div class="ctitle">🗺 国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
+        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">🌍 全球市场格局（KMeans 聚类）</div>
+          <img src="/charts/kmeans_country_clusters.png" style="width:100%;height:auto;border-radius:8px;margin-top:4px" alt="KMeans国家分群" />
+        </div></div>
         <div class="card-row-2">
-          <div class="card"><div class="ctitle">📊 选品推荐排名</div><div id="ch4" class="chart"></div></div>
-          <div class="card"><div class="ctitle">🗂 数据总览说明</div><div style="padding:24px;color:#889;line-height:2;font-size:13px">✅ 数据来源：速卖通5品类用户真实评论<br>✅ 分析模型：VADER情感打分 + ABSA特征抽取<br>✅ 选品依据：好评率 + 情感均分 + 评论规模 + 星评<br>✅ 最佳市场算法：分国家×商品交叉矩阵评分排序</div></div>
+          <div class="card"><div class="ctitle">💚 情感正/中/负面率对比</div><div id="ch-ov-stack" class="chart"></div></div>
+          <div class="card"><div class="ctitle">✅ 数据来源与分析方法</div>
+            <div style="padding:20px;line-height:2.2;color:#333;font-size:14px;text-align:center">
+              <b>数据源：</b>速卖通5品类用户真实评论（CSV 19,271条）<br>
+              <b>分析模型：</b>VADER情感打分 + ABSA特征抽取 + LDA主题聚类<br>
+              <b>选品依据：</b>好评率 + 情感均分 + 评论规模 + 星评综合加权<br>
+              <b>最佳市场：</b>国家×品类交叉矩阵评分排序
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 情感分析 -->
-      <div v-show="activeMenu==='sentiment'">
+      <!-- 产品洞察 -->
+      <div v-show="activeMenu==='product'">
+        <div class="card-row-2" style="margin-bottom:12px">
+          <div class="card"><div class="ctitle">🔍 {{ productNames[selectedPid] || '产品' }}特征ABSA分析（好评 vs 差评）</div><div id="ch-pa" class="chart"></div></div>
+          <div class="card"><div class="ctitle">📈 {{ productNames[selectedPid] || '产品' }}月度评分趋势</div><div id="ch-pt" class="chart"></div></div>
+        </div>
         <div class="card-row-2">
-          <div class="card"><div class="ctitle">情感正/中/负面率对比</div><div id="ch-s1" class="chart"></div></div>
-          <div class="card"><div class="ctitle">产品特征ABSA分析（好评 vs 差评）</div><div id="ch-s2" class="chart"></div></div>
+          <div class="card"><div class="ctitle">🍩 {{ productNames[selectedPid] || '产品' }}情感分布</div><div id="ch-pd" class="chart"></div></div>
+          <div class="card"><div class="ctitle">💡 产品洞察说明</div>
+            <div style="padding:24px 20px;line-height:2.4;color:#222;font-size:15px;text-align:center">
+              <b>以上三图为「{{ productNames[selectedPid] }}」的单品深度分析：</b><br>
+              <b>左上</b> — 特征ABSA：消费者夸什么、骂什么<br>
+              <b>右上</b> — 月度趋势：评分的历史走向<br>
+              <b>左下</b> — 情感分布：正面/中性/负面占比<br>
+              切换顶栏<b>产品选择器</b>，即可查看不同品类的洞察。
+            </div>
+          </div>
         </div>
       </div>
 
@@ -367,7 +418,7 @@ async function loadQuality(){
         <div style="margin-top:16px;padding:14px 18px;background:#fafafa;border-radius:10px">
           <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">🔍 选择国家查看深度洞察</div>
           <select v-model="selectedCountry" class="tb-sel" style="color:#333;background:#fff;border:1px solid #ddd;padding:8px 16px;border-radius:6px;font-size:14px;width:200px;margin-bottom:12px">
-            <option value="">— 选择国家 —</option><option v-for="r in allCountryOptions" :key="r.country" :value="r.country">{{ getCountryName(r.country) }} (⭐{{ r.avgStar }})</option>
+            <option value="">— 选择国家（全部） —</option><option v-for="(name,code) in countryNames" :key="code" :value="code">{{ name }} ({{ code }})</option>
           </select>
           <div v-if="countryDetail&&countryDetail.noData" style="text-align:center;padding:30px;color:#e65100;font-size:14px">⚠️ {{ countryDetail.cnName }} 目前在「{{ countryDetail.name }}」品类暂无评论数据</div>
           <div v-else-if="countryDetail" style="margin-top:10px">
