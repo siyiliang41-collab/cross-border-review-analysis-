@@ -14,8 +14,8 @@
 | 🔴 严重 | 7 |
 | 🟡 一般 | 21 |
 | 🟢 建议 | 9 |
-| 已修复 | 1 |
-| 待修复 | 34 |
+| 已修复 | 7 |
+| 待修复 | 28 |
 | 待讨论 | 2 |
 
 ---
@@ -126,15 +126,15 @@
 
 | 编号 | 行号 | 严重度 | 问题描述 | 修改建议 | 责任人 | 状态 |
 |:--:|------|:--:|------|------|:--:|:--:|
-| CR052 | 6 | 🔴 | API 地址 `http://192.168.229.101:8080/api` 硬编码——IP 变动前端直接不可用 | 使用环境变量 `VITE_API_BASE_URL` 或 Vite 代理转发 | 曹煜权 | 🔲 |
-| CR053 | 182+188 | 🔴 | **ch5 图表 DOM id 重复出现两次**——ECharts 只能绑定第一个 id，第二个 render 失败 | 第188行重复卡片整体删除（标题和内容与第182行完全相同） | 曹煜权 | 🔲 |
-| CR054 | 46 | 🟡 | `setTimeout(150)` 拍脑袋延时渲染图表——慢设备上 DOM 未就绪导致渲染失败 | 使用 `nextTick + requestAnimationFrame` 或 `ResizeObserver` | 曹煜权 | 🔲 |
-| CR055 | 21~29 | 🟡 | 大量硬编码字典（`productNames`/`countryNames`/`featureNames`/`logisticsNames`/`colorCN`）全塞在组件顶部，文件已达 300 行 | 抽取到独立的 `src/data/translations.js` 或 JSON 文件 | 曹煜权 | 🔲 |
-| CR056 | 53~89 | 🟡 | `loadAll()` 函数体过长（37行），承担取数据+计算+调用渲染全部职责 | 拆分为 `loadDecision()`/`loadCharts()`/`loadCountryInsight()` 等小函数 | 曹煜权 | 🔲 |
-| CR057 | 96~113 | 🟡 | ECharts option 对象直接内嵌在 `renderCharts()` 内，函数膨胀到 ~50 行 | 每个图表抽取为 `getChartXOption()` 工厂函数 | 曹煜权 | 🔲 |
-| CR058 | 109~136 | 🟡 | feature 好评/差评过滤逻辑（`f.score==='Fast'||f.score==='Good'...`）在 overview/sentiment/decision 三处重复，合计 5+ 次 | 抽取为 `isPositiveScore(score)` / `isNegativeScore(score)` 工具函数 | 曹煜权 | 🔲 |
-| CR059 | 64/68~70/84 | 🟡 | axios 请求无用户端错误提示——接口出错时静默设 null，用户看到空白页面 | 增加 Toast/Message 错误提示，图表区域显示错误状态占位 | 曹煜权 | 🔲 |
-| CR060 | 全局 | 🟡 | 变量缩写严重（`td`/`cc`/`cn`/`cf`/`ct`/`cs`/`fp`/`fn`/`d`/`r`/`m`/`s`/`p`），可读性差 | 改为有意义名称：如 `cn`→`countryName`、`cc`→`createChart` | 曹煜权 | 🔲 |
+| CR052 | 6 | 🔴 | API 地址硬编码——IP 变动前端直接不可用 | ✅ 已改用环境变量 `VITE_API_BASE_URL` | 曹煜权 | ✅ |
+| CR053 | 182+188 | 🔴 | **ch5 图表 DOM id 重复出现两次** | ✅ 删除重复卡片 + 抽取 `renderFeatureChart()` 公共函数 | 曹煜权 | ✅ |
+| CR054 | 46 | 🟡 | `setTimeout(150)` 拍脑袋延时渲染图表 | ✅ 3处全部改为 `nextTick()` | 曹煜权 | ✅ |
+| CR055 | 21~29 | 🟡 | 大量硬编码字典全塞在组件顶部 | 抽取到独立的 `src/data/translations.js` | 曹煜权 | 🔲 |
+| CR056 | 53~89 | 🟡 | `loadAll()` 函数体过长（37行） | 拆分为 `loadDecision()`/`loadCharts()`/`loadCountryInsight()` | 曹煜权 | 🔲 |
+| CR057 | 96~113 | 🟡 | ECharts option 对象直接内嵌在 `renderCharts()` 内 | 每个图表抽取为 `getChartXOption()` 工厂函数 | 曹煜权 | 🔲 |
+| CR058 | 109~136 | 🟡 | feature 好评/差评过滤逻辑5+次重复 | ✅ 已抽取为 `isPositiveFeature()` / `isNegativeFeature()` | 曹煜权 | ✅ |
+| CR059 | 64/68~70/84 | 🟡 | axios 请求无用户端错误提示 | ✅ 已加 `apiGet()` 统一错误处理 + `console.error` 日志 | 曹煜权 | ✅ |
+| CR060 | 全局 | 🟡 | 变量缩写严重（`td`/`cc`/`cn`/`cf`/`ct`等） | ✅ 13个变量已全部重命名为有意义的英文名 | 曹煜权 | ✅ |
 | CR061 | ~70 | 🟡 | `countryInsight.value` 内 Map key 混用 camelCase（`reviewCount`）和 snake_case（`featData`），与后端 CR039 问题联动 | 后端统一 snake_case 后，前端同步 | 曹煜权 | 🔲 |
 | CR062 | 73+85 | 🟢 | 无 `console.error` 日志，前端报错时排查困难 | catch 块中增加 `console.error(error.message)` | 曹煜权 | 🔲 |
 
@@ -210,3 +210,9 @@
 | 07-06 | CR058 | 5处重复过滤逻辑提取为 `isPositiveFeature` / `isNegativeFeature` | 曹煜权 |
 | 07-06 | CR059 | axios 统一 `apiGet()` 错误处理，catch 加 `console.error` | 曹煜权 |
 | 07-06 | — | 新增：ABSA图无数据占位 + `isPositiveFeature/isNegativeFeature` score trim化 | 曹煜权 |
+| 07-07 | CR054 | 3处 `setTimeout(150)` → `nextTick()` | 曹煜权 |
+| 07-07 | CR060 | 13个变量重命名（`td`→`allData`、`cc`→`createChart`等） | 曹煜权 |
+| 07-07 | — | 新增数据质量报告Tab（替代历史记录） | 曹煜权 |
+| 07-07 | — | 新增5品类关键词特征标注（`tag_features.py`） | 梁思怡 |
+| 07-08 | — | 新增 Pandas/Numpy EDA + LDA 主题模型 + MR vs Spark 对比 | 梁思怡 |
+| 07-08 | — | 新增项目总览文档 + API清单 + 3张可视化图表 | 梁思怡 |
