@@ -1,7 +1,9 @@
 # API 接口清单
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> 后端：SpringBoot 3.2 | 地址：`http://192.168.229.101:8080/api`
+> v4.0 | SpringBoot 3.2 | 地址：`http://192.168.229.101:8080/api`
+
+访问方式：局域网 `http://192.168.229.101:8080` 或公网 `https://squint-owl-worshiper.ngrok-free.dev`
 
 ---
 

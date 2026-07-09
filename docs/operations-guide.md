@@ -1,7 +1,7 @@
 # 项目运行操作手册
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> 最后更新：2026-07-07
+> v4.0 | 最后更新：2026-07-09
 
 ---
 
@@ -24,13 +24,13 @@
 | 组件 | 所在机器 | 地址 | 端口 |
 |------|------|------|:--:|
 | MySQL 8.0 | hadoop01 | 192.168.229.101 | 3306 |
-| SpringBoot 后端 | hadoop01 | 192.168.229.101 | 8080 |
-| Vue3 前端 | 本机 Windows | localhost | 5173 |
+| SpringBoot 后端（含前端） | hadoop01 | 192.168.229.101 | 8080 |
 | HDFS | hadoop01/02/03 | — | 9000 |
 | YARN | hadoop03 | 192.168.229.103 | 8088 |
+| ngrok 公网穿透 | hadoop01 | squint-owl-worshiper.ngrok-free.dev | 443 |
 
 **数据库名：** `bipt_project`  
-**用户/密码：** `root / 123456`
+**用户/密码：** `root / Root@123456`
 
 ---
 
@@ -199,16 +199,17 @@ cat /root/app.log
 
 ### 4.1 浏览器打开
 
-**`http://192.168.229.101:8080`**
+**局域网（推荐）：** `http://192.168.229.101:8080`  
+**公网备用：** `https://squint-owl-worshiper.ngrok-free.dev`（首次需点 Visit Site）
 
-同一个端口同时提供 API 和前端页面，无跨域问题。
+同一个端口同时提供 API 和前端页面（相对路径 `/api`），无跨域问题。
 
 ### 4.2 前端需要修改时怎么调试
 
 如果后续要改前端代码，先用开发模式调试：
 
 ```bash
-cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
+cd "c:\Users\10730\Desktop\bipt project\frontend"
 npm run dev
 # → http://localhost:5173（热更新，改代码即刷新）
 ```
@@ -216,16 +217,25 @@ npm run dev
 调试完毕确认无误后，重新打包嵌入后端：
 
 ```bash
-cd "c:\Users\10730\Desktop\bipt project\bipt-dashboard"
+cd "c:\Users\10730\Desktop\bipt project\frontend"
 npm run build
 
-# 把 dist 拷入后端 static 目录
-rm -rf "../bipt-api/src/main/resources/static"
-cp -r dist/* "../bipt-api/src/main/resources/static/"
+# 把 dist 和 kmeans_data.json 拷入后端 static 目录
+rm -rf "../backend/src/main/resources/static/"*
+cp -r dist/* "../backend/src/main/resources/static/"
+cp public/kmeans_data.json "../backend/src/main/resources/static/"
 
-# 上传到 hadoop01 重新编译后端
-scp -r "../bipt-api/src" "root@192.168.229.101:/root/bipt-api/"
-ssh root@192.168.229.101 "cd /root/bipt-api && mvn clean package -DskipTests -q && pkill -f bipt-api; sleep 1; nohup java -jar target/bipt-api-1.0.0.jar > /root/app.log 2>&1 &"
+# 上传到 hadoop01 重新编译后端（使用 paramiko 或手动 SCP）
+# 或直接在 hadoop01 上 mvn clean package -DskipTests
+# 然后重启: pkill -f java; nohup java -jar target/bipt-api-1.0.0.jar > /root/app.log 2>&1 &
+```
+
+### 4.3 公网穿透（ngrok）
+
+```bash
+# 在 hadoop01 上
+nohup ngrok http 8080 > /dev/null 2>&1 &
+# 公网地址: https://squint-owl-worshiper.ngrok-free.dev
 ```
 
 ---
@@ -238,44 +248,38 @@ ssh root@192.168.229.101 "cd /root/bipt-api && mvn clean package -DskipTests -q 
 
 | 检查项 | 怎么看 | 预期 |
 |------|------|------|
-| 是否加载 | 图表区域没有转圈或空白 | 4张图全部显示 |
-| ch1 情感趋势折线 | 左上角蓝色折线图 | 有13个月的数据点 |
-| ch2 选品雷达 | 右上角5色雷达图 | 5条线对应5个商品 |
-| ch3 热力图 | 中间大图 | 格子有颜色和数字 |
-| ch5 特征ABSA | 右侧上方绿色/红色柱状图 | 有柱子（非空白） |
+| 是否加载 | 图表区域没有转圈或空白 | 6张图+文字全部显示 |
+| 情感趋势折线 | 第一行左图 | 有13个月的数据点 |
+| 选品雷达 | 第一行右图 | 5条线对应5个商品 |
+| 热力图 | 第二行全宽 | 格子有颜色和数字 |
+| KMeans散点图 | 第三行全宽 | 102国气泡+4色聚类 |
+| 选品排名 | 第四行左图 | 5商品排序柱状 |
+| 情感堆叠 | 第四行右图 | 正/中/负三色堆叠 |
 
-### 5.2 情感分析 Tab
-
-| 检查项 | 怎么看 | 预期 |
-|------|------|------|
-| 正/中/负面堆叠柱状图 | 左侧图 | 5组柱子，正/中/负三种颜色 |
-| 产品特征ABSA | 右侧图 | 有柱子 |
-
-### 5.3 选品建议 Tab
+### 5.2 产品洞察 Tab
 
 | 检查项 | 怎么看 | 预期 |
 |------|------|------|
-| 提示文字 | 未选国家时 | "请在上方选择一个国家以查看该国的选品深度分析" |
-| 选择国家后 | 顶部下拉选一个（如 US） | 出现橙色国家卡片 + 2张图 |
-| 国家卡片 | 4个数字 | 平均星评/评论数/趋势/推荐属性 都有数值 |
-| 洞察文字 | 卡片底部 | 有中文建议文案 |
-| ch-d1 趋势图 | 左侧 | 有折线 |
-| ch-d2 SKU偏好 | 右侧 | 有柱状图 |
+| ABSA特征 | 左图 | 好评绿/差评红柱子 |
+| 月度趋势 | 右图 | 随顶栏选品变化 |
+| 情感环形图 | 左下 | 正/中/负占比 |
 
-### 5.4 商品切换
+### 5.3 市场洞察 Tab
 
-| 检查项 | 操作 | 预期 |
+| 检查项 | 怎么看 | 预期 |
 |------|------|------|
-| 切换商品 | 顶部下拉选其他商品 | 图表刷新，无报错 |
-| 切换国家 | 选其他有数据的国家 | 选品建议Tab内容更新 |
+| TOP5排名卡片 | 切换不同商品 | 国家排名自动变化 |
+| 国家详情 | 下拉选国家 | 橙色洞察卡片+趋势+SKU图 |
+| 预测线 | 趋势图中 | 红色虚线回归+菱形预测点 |
+| LDA风险兜底 | 注意风险列 | 缺数据的国家标注（全品类推测风险） |
 
-### 5.5 控制台检查
+### 5.4 控制台检查
 
-按 **F12** 打开浏览器开发者工具 → **Console** 标签：
+按 **F12** → **Console**：
 
-- ❌ 有红色报错 → 说明某个接口挂了，看错误信息定位
-- ⚠️ 有 `[API错误]` 黄色警告 → 某个接口请求失败（后端可能没启动）
-- ✅ 无任何输出 → 一切正常
+- ❌ CORS 报错 → 检查是否在用 `http://192.168.229.101:8080` 访问
+- ❌ 红色报错 → API 挂了，检查后端进程
+- ✅ 无报错 → 一切正常
 
 ---
 
@@ -720,6 +724,6 @@ ssh hadoop01 "nohup ngrok http 8080 > /dev/null 2>&1 &"
 # 局域网（推荐，答辩当天用）：
 #   浏览器打开 http://192.168.229.101:8080
 # 公网（备用）：
-#   浏览器打开 https://squint-owl-worshiper.ngrok-free.dev
-# ⑨ F12 → Console → 无红色报错 ✅
+#   浏览器打开 https://squint-owl-worshiper.ngrok-free.dev（首次需点 Visit Site）
+# F12 → Console → 无红色报错 ✅
 ```

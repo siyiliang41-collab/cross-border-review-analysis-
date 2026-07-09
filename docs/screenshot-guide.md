@@ -1,7 +1,7 @@
 # 答辩截图与证据清单
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> v3.0 | 2026-07-08
+> v4.0 | 2026-07-09
 
 ---
 
@@ -62,14 +62,14 @@
 | `Pandas EDA 终端输出` | `pandas_eda.py` 全部统计输出 | PPT 基础分析证据 |
 | `charts/pandas_eda_charts.png` | 4合1：评分分布/品类柱状/月度趋势/星评对比 | PPT 核心图 |
 
-## 七、前端大屏（四 Tab）
+## 七、前端大屏（四 Tab — v4.0 重构）
 
 | 文件名 | 内容 | 用途 |
 |---|---|---|
-| `前端-数据概览Tab` | Overview 截图（趋势折线/雷达/热力/排名/ABSA） | PPT 可视化 |
-| `前端-情感分析Tab` | Sentiment 截图（堆叠柱状/ABSA） | PPT 可视化 |
-| `前端-选品建议Tab` | Decision 截图（国家卡片+趋势+SKU偏好） | PPT 可视化 |
-| `前端-数据质量Tab` | Quality 截图（概览/清洗/月度/国家/品类/结论） | PPT 可视化 |
+| `前端-数据概览Tab` | 趋势折线/雷达/热力/KMeans散点/选品排名/情感堆叠 | PPT 可视化 |
+| `前端-产品洞察Tab` | ABSA特征/月度趋势/情感环形图（跟选品切换） | PPT 可视化 |
+| `前端-市场洞察Tab` | TOP5排名卡片+国家详情+预测线+LDA兜底风险 | PPT 可视化 |
+| `前端-数据质量Tab` | 概览/清洗/月度/国家/品类/结论 | PPT 可视化 |
 | `F12 Console 无报错` | 控制台截图，证明全链路无异常 | PPT 联调成功 |
 
 ## 八、部署验证
@@ -77,7 +77,8 @@
 | 文件名 | 内容 | 用途 |
 |---|---|---|
 | `后端curl验证` | `curl http://localhost:8080/api/overview` 返回 JSON | PPT 后端可用 |
-| `前端 GitHub Pages` | `https://siyiliang41-collab.github.io/lsy-dashboard` 浏览器截图 | PPT 公网部署 |
+| `局域网访问` | `http://192.168.229.101:8080` 浏览器截图 | PPT 局域网部署 |
+| `公网访问` | `https://squint-owl-worshiper.ngrok-free.dev` 截图 | PPT 公网部署 |
 
 ## 九、尚未截图的（答辩前补）
 
@@ -87,6 +88,7 @@
 | HDFS NameNode Web UI (`http://192.168.229.101:9870`) | Active NameNode + 3 DataNodes |
 | 前端 4 Tab 逐张截图 | 填上面第七节 |
 | ZooKeeper 三节点 status | Leader/Follower 状态 |
+| KMeans ECharts 矢量图 | 前端 ch-km 散点图，代替 PNG |
 
 ## 十、所有图表产物
 
@@ -95,3 +97,6 @@
 | `charts/pandas_eda_charts.png` | Pandas EDA 4合1图 |
 | `charts/mr_vs_spark.png` | MR vs Spark 对比图 |
 | `charts/lda_topics.png` | LDA 5主题词频 + 痛点分布 |
+| `charts/kmeans_country_clusters.png` | KMeans PCA散点 + 4类市场卡片 |
+| `charts/time_series_forecast.png` | 时序预测回归线 + 菱形预测点 |
+| `frontend/public/kmeans_data.json` | KMeans 102国数据（前端ECharts用） |
