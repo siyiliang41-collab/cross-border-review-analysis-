@@ -64,12 +64,12 @@ ax2.tick_params(labelsize=12)
 for sp in ['top', 'right']: ax2.spines[sp].set_visible(False)
 
 # 底部注释（移到上方，留出足够空间）
-fig.text(0.5, 0.06, '同台 YARN 集群竞技  |  MR 固定开销 ~20s（容器启动+调度+磁盘溢写）|  Spark on YARN 仅 1.7~2.2s  |  加速比 9~12 倍',
+fig.text(0.5, 0.06, '同台 YARN 集群竞技，MR 固定开销 ~20s（容器启动+调度+磁盘溢写），Spark on YARN 仅 1.7~2.2s，加速比 9~12 倍',
          ha='center', fontsize=13, fontweight='bold', color='#1E293B')
 
 # 标题 — 拉开间距
 fig.suptitle('MR vs Spark 同台 YARN 竞技 — WordCount 性能对比', fontsize=21, fontweight='bold', color='#0F172A', y=0.98)
-fig.text(0.5, 0.94, '同一集群 · 同一数据 · 同一 WordCount 任务  |  YARN 1 节点 hadoop03',
+fig.text(0.5, 0.91, '同一集群 · 同一数据 · 同一 WordCount 任务  |  YARN 1 节点 hadoop03',
          ha='center', fontsize=12, color='#666')
 
 plt.savefig("../charts/mr_vs_spark.png", dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
