@@ -99,4 +99,4 @@
 | `charts/lda_topics.png` | LDA 5主题词频 + 痛点分布 |
 | `charts/kmeans_country_clusters.png` | KMeans PCA散点 + 4类市场卡片 |
 | `charts/time_series_forecast.png` | 时序预测回归线 + 菱形预测点 |
-| `frontend/public/kmeans_data.json` | KMeans 102国数据（前端ECharts用） |
+| `charts/consistency_analysis.png` | 评分与情感一致性散点图 |

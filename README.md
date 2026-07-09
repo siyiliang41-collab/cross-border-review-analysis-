@@ -15,7 +15,7 @@
 | 分析品类 | 蓝牙耳机/手机壳/LED小夜灯/连衣裙/油壶 |
 
 - **技术栈：** Python爬虫 → Hive四层数仓 → Spark → MySQL → SpringBoot → Vue3+ECharts
-- **ML 算法：** LDA 主题聚类 + KMeans 国家分群 + 线性回归预测
+- **ML 算法：** LDA 主题聚类 + KMeans 国家分群 + 线性回归预测 + VADER一致性校验
 - **前端：** 4Tab（概览/产品洞察/市场洞察/数据质量），ECharts 矢量渲染
 - **部署：** 局域网 `192.168.229.101:8080`（前端内嵌 JAR）+ ngrok 公网穿透
 
