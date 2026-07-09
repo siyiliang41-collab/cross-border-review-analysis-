@@ -664,7 +664,7 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .tb-sel option{color:#333}
 .tb-avatar{font-size:24px;cursor:pointer}
 
-.content{flex:1;overflow-y:auto;padding:20px}
+.content{flex:1;overflow-y:auto;padding:20px;max-width:1400px;margin:0 auto;width:100%}
 
 /* 卡片 */
 .card-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
