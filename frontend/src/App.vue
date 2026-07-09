@@ -12,10 +12,10 @@ const allCountryOptions = ref([])  // 全量国家列表（用于下拉框）
 const allData = ref({})
 
 const menus = [
-  {key:'overview',label:'数据概览',icon:'📊'},
-  {key:'product',label:'产品洞察',icon:'🔬'},
-  {key:'decision',label:'市场洞察',icon:'🌍'},
-  {key:'quality',label:'数据质量',icon:'🛡️'},
+  {key:'overview',label:'数据概览'},
+  {key:'product',label:'产品洞察'},
+  {key:'decision',label:'市场洞察'},
+  {key:'quality',label:'数据质量'},
 ]
 
 const productNames = {'3256808363596774':'蓝牙耳机','3256807406290815':'手机壳','3256807087680846':'LED小夜灯','3256807145227935':'连衣裙','3256805677493085':'油壶'}
@@ -86,6 +86,20 @@ async function apiGet(url) {
 let charts={}
 function createChart(id,opt){nextTick(()=>{const container=document.getElementById(id);if(container&&container.clientWidth>0){if(charts[id])charts[id].dispose();const c=echarts.init(container);c.setOption(opt);charts[id]=c}})}
 function clearAll(){Object.values(charts).forEach(c=>c.dispose());charts={}}
+
+// KMeans 国家分群数据（静态加载，一次请求）
+let kmeansData = null
+async function loadKmeansData() {
+  if (kmeansData) return kmeansData
+  try {
+    const r = await fetch('/kmeans_data.json')
+    kmeansData = await r.json()
+    return kmeansData
+  } catch (e) {
+    console.error('KMeans数据加载失败', e)
+    return null
+  }
+}
 
 // 公共函数：渲染产品特征ABSA柱状图（好评 vs 差评）
 function renderFeatureChart(chartId, features, noDataMessage='该商品暂无特征分析数据'){
@@ -257,6 +271,90 @@ function lrPredict(points){
   return {slope,intercept,pred, fitted}
 }
 
+// KMeans 散点图（ECharts 矢量渲染，替代 PNG）
+function renderKMeansChart(km) {
+  if (!km || !km.countries) return
+  const TAG_COLORS = {Star: '#5B3F9E', Box: '#D68B2C', Seed: '#2E9B70', Zoom: '#575757'}
+  const TAG_NAMES = {Star: '成熟高价值市场', Box: '价格敏感大市场', Seed: '潜力精品市场', Zoom: '长尾探索市场'}
+  const clusters = ['Star', 'Box', 'Seed', 'Zoom']
+
+  const maxReviews = Math.max(...km.countries.map(c => c.reviews))
+
+  // 各聚类分别构建 series
+  const series = clusters.map(tag => {
+    const items = km.countries.filter(c => c.tag === tag)
+    return {
+      name: TAG_NAMES[tag],
+      type: 'scatter',
+      data: items.map(c => [c.x, c.y, c.reviews, c.name, c.avgStar]),
+      // 气泡大小 = 评论数映射到 8~60
+      symbolSize: function (val) {
+        return 8 + (val[2] / maxReviews) * 52
+      },
+      itemStyle: { color: TAG_COLORS[tag], opacity: 0.78, borderColor: '#fff', borderWidth: 0.4 },
+      emphasis: { focus: 'series', scale: 1.5 },
+    }
+  })
+
+  // 标注每个聚类 TOP2 国家
+  const labelSeries = clusters.map(tag => {
+    const items = km.countries.filter(c => c.tag === tag).sort((a, b) => b.reviews - a.reviews)
+    const top2 = items.slice(0, 2)
+    return {
+      type: 'scatter',
+      data: top2.map(c => [c.x, c.y]),
+      symbolSize: 0,
+      label: {
+        show: true,
+        formatter: function (p) {
+          const c = km.countries.find(x => x.x === p.value[0] && x.y === p.value[1])
+          return c ? c.name : ''
+        },
+        color: TAG_COLORS[tag],
+        fontSize: 11,
+        fontWeight: 'bold',
+        position: 'right',
+        distance: 5,
+      },
+      itemStyle: { opacity: 0 },
+      tooltip: { show: false },
+      z: 99,
+    }
+  })
+
+  const allSeries = [...series, ...labelSeries]
+
+  const pca = km.pcaVariance || [29.8, 25.2]
+  createChart('ch-km', {
+    tooltip: {
+      formatter: function (p) {
+        const v = p.value
+        if (!v || v.length < 5) return ''
+        return '<b>' + v[3] + '</b><br/>星评: ' + v[4] + ' · 评论: ' + v[2] + ' · ' + p.seriesName
+      },
+    },
+    legend: {
+      data: clusters.map(t => TAG_NAMES[t]),
+      textStyle: { color: '#555', fontSize: 12 },
+      top: 0, itemWidth: 12, itemHeight: 12,
+    },
+    grid: { left: 55, right: 20, top: 40, bottom: 45 },
+    xAxis: {
+      type: 'value', name: 'PC1 (' + pca[0] + '%)',
+      nameTextStyle: { color: '#555', fontSize: 12, fontWeight: 'bold' },
+      axisLabel: { color: '#666', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#e8e8e8', type: 'dashed' } },
+    },
+    yAxis: {
+      type: 'value', name: 'PC2 (' + pca[1] + '%)',
+      nameTextStyle: { color: '#555', fontSize: 12, fontWeight: 'bold' },
+      axisLabel: { color: '#666', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#e8e8e8', type: 'dashed' } },
+    },
+    series: allSeries,
+  })
+}
+
 function renderCharts(){
   clearAll();const data=allData.value;const currentTab=activeMenu.value;const pid=selectedPid.value
 
@@ -274,6 +372,8 @@ function renderCharts(){
     // 情感正/中/负面率堆叠（从旧情感分析Tab搬过来）
     const sp=data.sentiment
     createChart('ch-ov-stack',{tooltip:{trigger:'axis'},legend:{data:['正面','中性','负面'],textStyle:{color:'#889',fontSize:11},top:0},grid:{left:55,right:30,top:30,bottom:30},xAxis:{type:'category',data:sp.map(s=>productNames[s.product_id]||''),axisLabel:{color:'#889',fontSize:11,rotate:15}},yAxis:{type:'value',name:'%',min:0,max:100,axisLabel:{color:'#889',fontSize:11}},series:[{name:'正面',type:'bar',stack:'t',data:sp.map(s=>s.pos_rate),itemStyle:{color:'#00c853'},label:{show:true,color:'#fff',fontSize:10}},{name:'中性',type:'bar',stack:'t',data:sp.map(s=>Number(((s.total-s.pos_cnt-s.neg_cnt)*100/s.total).toFixed(1))),itemStyle:{color:'#ff9800'}},{name:'负面',type:'bar',stack:'t',data:sp.map(s=>Number((s.neg_cnt*100/s.total).toFixed(1))),itemStyle:{color:'#ff1744'}}]})
+    // KMeans 国家分群散点图（ECharts矢量渲染）
+    loadKmeansData().then(km => { if (km) renderKMeansChart(km) })
   }
 
   if(currentTab==='product'){
@@ -333,28 +433,33 @@ async function loadQuality(){
     <!-- 内容区 -->
     <div class="content">
 
-      <!-- 数据概览 -->
+      <!-- 数据概览（2+2+1布局） -->
       <div v-show="activeMenu==='overview'">
-        <div class="card-row-3">
+        <!-- 第一行：情感趋势 + 雷达 -->
+        <div class="card-row-2">
           <div class="card"><div class="ctitle">情感分析趋势</div><div id="ch1" class="chart"></div></div>
           <div class="card"><div class="ctitle">选品决策支持评分</div><div id="ch2" class="chart"></div></div>
-          <div class="card"><div class="ctitle">选品推荐排名</div><div id="ch4" class="chart"></div></div>
         </div>
-        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
-        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">全球市场格局（KMeans 聚类）</div>
-          <img src="/charts/kmeans_country_clusters.png" style="width:100%;height:auto;border-radius:8px;margin-top:4px" alt="KMeans国家分群" />
-        </div></div>
+        <!-- 第二行：热力图（全宽） -->
+        <div class="card-row-1"><div class="card"><div class="ctitle">国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
+        <!-- 第三行：KMeans散点图（全宽，ECharts矢量） -->
+        <div class="card-row-1"><div class="card"><div class="ctitle">全球市场格局（KMeans 聚类）</div><div id="ch-km" class="chart" style="height:420px"></div></div></div>
+        <!-- 第四行：选品排名 + 情感堆叠 -->
         <div class="card-row-2">
+          <div class="card"><div class="ctitle">选品推荐排名</div><div id="ch4" class="chart"></div></div>
           <div class="card"><div class="ctitle">情感正/中/负面率对比</div><div id="ch-ov-stack" class="chart"></div></div>
-          <div class="card"><div class="ctitle">数据来源与分析方法</div>
-            <div style="padding:20px;line-height:2.2;color:#333;font-size:14px;text-align:center">
+        </div>
+        <!-- 第五行：数据来源（全宽） -->
+        <div class="card-row-1"><div class="card"><div class="ctitle">数据来源与分析方法</div>
+          <div style="padding:20px;line-height:2.2;color:#333;font-size:14px;text-align:center">
+            <div style="display:inline-block;text-align:left">
               <b>数据源：</b>速卖通5品类用户真实评论（CSV 19,271条）<br>
               <b>分析模型：</b>VADER情感打分 + ABSA特征抽取 + LDA主题聚类<br>
               <b>选品依据：</b>好评率 + 情感均分 + 评论规模 + 星评综合加权<br>
               <b>最佳市场：</b>国家×品类交叉矩阵评分排序
             </div>
           </div>
-        </div>
+        </div></div>
       </div>
 
       <!-- 产品洞察 -->
@@ -367,11 +472,13 @@ async function loadQuality(){
           <div class="card"><div class="ctitle">{{ productNames[selectedPid] || '产品' }}情感分布</div><div id="ch-pd" class="chart"></div></div>
           <div class="card"><div class="ctitle">产品洞察说明</div>
             <div style="padding:24px 20px;line-height:2.4;color:#222;font-size:15px;text-align:center">
-              <b>以上三图为「{{ productNames[selectedPid] }}」的单品深度分析：</b><br>
-              <b>左上</b> — 特征ABSA：消费者夸什么、骂什么<br>
-              <b>右上</b> — 月度趋势：评分的历史走向<br>
-              <b>左下</b> — 情感分布：正面/中性/负面占比<br>
-              切换顶栏<b>产品选择器</b>，即可查看不同品类的洞察。
+              <div style="display:inline-block;text-align:left">
+                <b>以上三图为「{{ productNames[selectedPid] }}」的单品深度分析：</b><br>
+                <b>左上</b> — 特征ABSA：消费者夸什么、骂什么<br>
+                <b>右上</b> — 月度趋势：评分的历史走向<br>
+                <b>左下</b> — 情感分布：正面/中性/负面占比<br>
+                切换顶栏<b>产品选择器</b>，即可查看不同品类的洞察。
+              </div>
             </div>
           </div>
         </div>
@@ -387,7 +494,7 @@ async function loadQuality(){
             <div class="mr-hd">
               <span class="mr-rank">#{{ i+1 }}</span>
               <span class="mr-flag">{{ getCountryName(c.country) }}</span>
-              <span class="mr-stars">⭐{{ c.avgStar }}</span>
+              <span class="mr-stars">{{ c.avgStar }} 分</span>
               <span class="mr-reviews">{{ c.reviewCount }}条评论</span>
               <span :style="{color:c.trendDir.indexOf('↑')>=0?'#00B42A':'#F53F3F',fontWeight:'bold',marginLeft:'8px',fontSize:'14px'}">{{ c.trendDir }}</span>
               <span v-if="c.trendScores!=='--'" style="font-size:15px;color:#333;marginLeft:6px;font-weight:bold">{{ c.trendScores }}</span>
@@ -540,7 +647,7 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .sb-nav a{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;color:#8899aa;cursor:pointer;transition:all .2s;text-decoration:none;font-size:14px}
 .sb-nav a:hover{background:rgba(79,195,247,.1);color:#bcc}
 .sb-nav a.active{background:linear-gradient(90deg,rgba(79,195,247,.2),rgba(79,195,247,.05));color:#4fc3f7;font-weight:600}
-.nav-icon{font-size:18px}.nav-label{font-size:14px}
+.nav-label{font-size:14px}
 .sb-footer{text-align:center;color:#445;font-size:12px;padding-top:16px}
 
 /* 主区域 */
@@ -558,7 +665,8 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 
 /* 卡片 */
 .card-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
-.card-row-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card-row-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card-row-1{margin-bottom:16px}
 .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .ctitle{font-size:15px;font-weight:600;color:#333;margin-bottom:12px;padding-left:10px;border-left:3px solid #2979ff}
 .chart{width:100%;height:280px}
