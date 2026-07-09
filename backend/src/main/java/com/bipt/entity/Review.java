@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 
 /**
  * 评论实体类 — 映射 MySQL bipt_review 表（个体评论数据）
@@ -15,8 +17,9 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @TableName("bipt_review")
 public class Review {
 
-    /** 评价ID（速卖通全局唯一） */
+    /** 评价ID（17位数字，须 String 序列化防 JS 精度丢失） */
     @TableId(value = "evaluation_id", type = IdType.INPUT)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long evaluationId;
 
     /** 商品ID（速卖通 productId） */

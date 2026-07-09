@@ -118,8 +118,21 @@
 | 8 | MySQL 8.0 Public Key Retrieval | caching_sha2_password 认证 | JDBC URL 加 allowPublicKeyRetrieval=true |
 | 9 | ABSA 特征图部分品类空白 | 速卖通 AI 标签覆盖不均衡 | 前端占位 + 自建关键词标注 + LDA 兜底 |
 | 10 | 爬虫 API 翻到最后页循环重复 | 速卖通 API 超出范围后回首页 | 评价 ID 去重 + 连续重复检测 |
+| 11 | CRUD 前端卡顿+返回全量10MB | MyBatis Plus分页插件缺失+图标全量注册 | 手动COUNT+LIMIT分页+去全局图标注册 |
+| 12 | evaluationId 17位精度丢失删不了 | JS Number 最大16位安全整数 | @JsonSerialize ToString + @PathVariable String |
 
-## 九、部署
+## 九、用户认证（v5.0 新增）
+
+| 端点 | 说明 | 权限 |
+|------|------|------|
+| POST `/api/auth/login` | 用户登录 → 返回 JWT token | 公开 |
+| POST `/api/auth/register` | 用户注册 → 默认 role=user | 公开 |
+
+- **管理员** (admin/admin123)：`/api/crud/**` POST/PUT/DELETE 可操作
+- **普通用户**（自行注册）：仅 GET 可查看，增删改返回 403
+- 技术: JWT (jjwt 0.12.6) + BCrypt (at.favre 0.10.2) + Spring Interceptor
+
+## 十、部署
 
 | 场景 | 地址 | 说明 |
 |---|---|---|
@@ -129,7 +142,7 @@
 
 > **注意：** GitHub Pages 部署已停用（vite base 路径改为 `/` 适配 SpringBoot）。答辩优先用局域网地址。
 
-## 十、工程化文档
+## 十一、工程化文档
 
 | 文档 | 文件名 |
 |---|---|

@@ -1,20 +1,42 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
 import DataManage from './views/DataManage.vue'
+import AuthPage from './views/AuthPage.vue'
+import { isLoggedIn, isAdmin, clearAuth, getToken, getUsername } from './utils/auth.js'
+import { ElMessage } from 'element-plus'
 
-const router = useRouter()
-const route = useRoute()
+// Axios 拦截器：自动附带 JWT token
+axios.interceptors.request.use(config => {
+  const token = getToken()
+  if (token) config.headers.Authorization = 'Bearer ' + token
+  return config
+})
+// 响应拦截器：token 过期 → 踢回登录
+axios.interceptors.response.use(r => r, err => {
+  if (err.response?.status === 403) {
+    clearAuth(); loggedIn.value = false
+    ElMessage.error('登录已过期或无权限，请重新登录')
+  }
+  return Promise.reject(err)
+})
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api'
+const loggedIn = ref(isLoggedIn())
 const selectedPid = ref('3256805677493085')
 const selectedCountry = ref('')
 const activeMenu = ref('overview')
 const marketRanking = ref([])  // TOP5 国家推荐排名
 const allCountryOptions = ref([])  // 全量国家列表（用于下拉框）
 const allData = ref({})
+
+// 右侧悬浮卡样式（:style 绑定，防 Element Plus CSS 覆盖）
+const fpCard    = { background:'linear-gradient(135deg,#1565c0,#0d47a1)', borderRadius:'12px', padding:'18px 14px', textAlign:'center', color:'#fff', boxShadow:'0 4px 12px rgba(21,101,192,.3)' }
+const fpNumBlue = { fontSize:'24px', fontWeight:'800', marginBottom:'4px', color:'#81d4fa' }
+const fpNumGreen= { fontSize:'24px', fontWeight:'800', marginBottom:'4px', color:'#a5d6a7' }
+const fpLabel   = { fontSize:'12px', opacity:'.85' }
+const fpAside   = { width:'180px', padding:'16px 12px', display:'flex', flexDirection:'column', gap:'14px', flexShrink:'0' }
 
 const menus = [
   {key:'overview',label:'数据概览'},
@@ -26,7 +48,7 @@ const menus = [
 
 const productNames = {'3256808363596774':'蓝牙耳机','3256807406290815':'手机壳','3256807087680846':'LED小夜灯','3256807145227935':'连衣裙','3256805677493085':'油壶'}
 const productList = Object.entries(productNames).map(([id,name])=>({id,name}))
-const countryNames = {'ES':'西班牙','UA':'乌克兰','FR':'法国','US':'美国','KR':'韩国','GB':'英国','IT':'意大利','BR':'巴西','MX':'墨西哥','PL':'波兰','DE':'德国','RU':'俄罗斯','NL':'荷兰','TR':'土耳其','JP':'日本','IL':'以色列','CL':'智利','CA':'加拿大','AU':'澳大利亚','PT':'葡萄牙','BE':'比利时','SE':'瑞典','AT':'奥地利'}
+const countryNames = {'AE':'阿联酋','AL':'阿尔巴尼亚','AO':'安哥拉','AR':'阿根廷','AT':'奥地利','AU':'澳大利亚','BD':'孟加拉国','BE':'比利时','BG':'保加利亚','BH':'巴林','BO':'玻利维亚','BR':'巴西','BY':'白俄罗斯','CA':'加拿大','CH':'瑞士','CL':'智利','CO':'哥伦比亚','CR':'哥斯达黎加','CV':'佛得角','CZ':'捷克','DE':'德国','DK':'丹麦','DO':'多米尼加','DZ':'阿尔及利亚','EC':'厄瓜多尔','EE':'爱沙尼亚','EG':'埃及','ES':'西班牙','ET':'埃塞俄比亚','EU':'欧盟','FI':'芬兰','FR':'法国','GB':'英国','GF':'法属圭亚那','GH':'加纳','GP':'瓜德罗普','GR':'希腊','HK':'中国香港','HN':'洪都拉斯','HR':'克罗地亚','HU':'匈牙利','ID':'印度尼西亚','IE':'爱尔兰','IL':'以色列','IN':'印度','IT':'意大利','JO':'约旦','JP':'日本','KE':'肯尼亚','KR':'韩国','KS':'科索沃','KW':'科威特','LB':'黎巴嫩','LK':'斯里兰卡','LT':'立陶宛','LU':'卢森堡','LV':'拉脱维亚','MA':'摩洛哥','MK':'北马其顿','MQ':'马提尼克','MT':'马耳他','MU':'毛里求斯','MX':'墨西哥','MY':'马来西亚','MZ':'莫桑比克','NG':'尼日利亚','NL':'荷兰','NO':'挪威','NP':'尼泊尔','NZ':'新西兰','OM':'阿曼','PA':'巴拿马','PE':'秘鲁','PF':'法属波利尼西亚','PK':'巴基斯坦','PL':'波兰','PT':'葡萄牙','PY':'巴拉圭','QA':'卡塔尔','RE':'留尼汪','RO':'罗马尼亚','RS':'塞尔维亚','RU':'俄罗斯','SA':'沙特','SC':'塞舌尔','SE':'瑞典','SG':'新加坡','SI':'斯洛文尼亚','SK':'斯洛伐克','SV':'萨尔瓦多','TH':'泰国','TN':'突尼斯','TR':'土耳其','TZ':'坦桑尼亚','UA':'乌克兰','UG':'乌干达','US':'美国','UY':'乌拉圭','VE':'委内瑞拉','VN':'越南','ZA':'南非'}
 function getCountryName(code){return countryNames[code]||code}
 const featureNames = {'Quality of sound':'音质','Durability':'耐用','User Friendly':'易用性','User Friendly ':'易用性','Fit':'合身度','Value for money':'性价比','Quality':'质量'}
 function getFeatureName(f){if(!f)return'';const t=f.trim();return featureNames[t]||featureNames[f]||t}
@@ -401,25 +423,12 @@ function renderCharts(){
 
 watch(selectedPid,()=>{selectedCountry.value='';loadAll()})
 watch(activeMenu,(tab)=>{
-  // 同步路由
-  const routeMap = { overview:'/overview', product:'/product', decision:'/market', quality:'/quality', 'data-manage':'/data-manage' }
-  if (routeMap[tab] && route.path !== routeMap[tab]) router.push(routeMap[tab])
   if(tab==='quality'){loadQuality().catch(e=>console.error('[质量报告加载失败]',e))}
-  if(tab!=='data-manage') nextTick(()=>renderCharts())
+  nextTick(()=>renderCharts())
 })
-// 路由 → activeMenu 反向同步（浏览器前进/后退）
-watch(()=>route.path, (path)=>{
-  const tabMap = {'/overview':'overview','/product':'product','/market':'decision','/quality':'quality','/data-manage':'data-manage'}
-  const tab = tabMap[path]
-  if (tab && activeMenu.value !== tab) activeMenu.value = tab
-})
-// 初始化：从 URL hash 恢复当前 Tab
-onMounted(()=>{
-  const tabMap = {'/overview':'overview','/product':'product','/market':'decision','/quality':'quality','/data-manage':'data-manage'}
-  const tab = tabMap[route.path]
-  if (tab) activeMenu.value = tab
-  loadAll()
-})
+onMounted(()=>{ if(loggedIn.value) loadAll() })
+function onLogin(){ loggedIn.value = true; nextTick(()=>loadAll()) }
+function onLogout(){ clearAuth(); loggedIn.value = false; window.location.reload() }
 
 async function loadQuality(){
   if(qualityReport.value)return
@@ -429,7 +438,13 @@ async function loadQuality(){
 </script>
 
 <template>
-<div class="app-shell">
+<!-- 未登录 → 显示登录/注册页 -->
+<div v-if="!loggedIn">
+  <AuthPage @login="onLogin" />
+</div>
+
+<!-- 已登录 → 主系统 -->
+<div v-else class="app-shell">
   <!-- 左侧导航 -->
   <aside class="sidebar">
     <div class="sb-logo">BIPT</div>
@@ -449,8 +464,10 @@ async function loadQuality(){
         <span class="tb-title">跨境电商评论情感挖掘与选品决策支持系统</span>
       </div>
       <div class="tb-right">
+        <span style="color:#fff;font-size:13px;margin-right:8px">{{ getUsername() }}</span>
+        <span style="color:#81d4fa;font-size:12px;margin-right:12px">{{ isAdmin()?'[管理员]':'[用户]' }}</span>
         <select v-model="selectedPid" class="tb-sel"><option v-for="p in productList" :key="p.id" :value="p.id">{{ p.name }}</option></select>
-        <span class="tb-avatar"></span>
+        <button @click="onLogout" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer">登出</button>
       </div>
     </header>
 
@@ -637,15 +654,15 @@ async function loadQuality(){
     </div>
   </main>
 
-  <!-- 右侧悬浮指标卡 -->
-  <aside class="float-panel">
-    <div class="fp-card">
-      <div class="fp-num blue">{{ liveMetrics.totalReviews }}</div>
-      <div class="fp-label">当前商品评论数</div>
+  <!-- 右侧悬浮指标卡（:style 绑定 = 无惧任何 CSS 覆盖） -->
+  <aside :style="fpAside">
+    <div :style="fpCard">
+      <div :style="fpNumBlue">{{ liveMetrics.totalReviews }}</div>
+      <div :style="fpLabel">当前商品评论数</div>
     </div>
-    <div class="fp-card">
-      <div class="fp-num green">{{ liveMetrics.posRate }}%</div>
-      <div class="fp-label">正面情感占比</div>
+    <div :style="fpCard">
+      <div :style="fpNumGreen">{{ liveMetrics.posRate }}%</div>
+      <div :style="fpLabel">正面情感占比</div>
     </div>
   </aside>
 </div>
@@ -654,6 +671,7 @@ async function loadQuality(){
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}
+
 </style>
 
 <style scoped>
@@ -709,12 +727,6 @@ body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .cc-num{font-size:28px;font-weight:800;color:#111}.cc-num.blue{color:#1565c0}.cc-num.green{color:#2e7d32}.cc-num.red{color:#c62828}
 .cc-lbl{display:block;font-size:13px;color:#333;margin-top:4px;font-weight:600}
 .cc-insight{background:#fff;border-radius:8px;padding:14px 18px;font-size:14px;color:#000;line-height:1.7}
-
-/* 右侧悬浮 */
-.float-panel{width:180px;padding:16px 12px;display:flex;flex-direction:column;gap:14px;flex-shrink:0}
-.fp-card{background:linear-gradient(135deg,#1565c0,#0d47a1);border-radius:12px;padding:18px 14px;text-align:center;color:#fff;box-shadow:0 4px 12px rgba(21,101,192,.3)}
-.fp-num{font-size:24px;font-weight:800;margin-bottom:4px}.fp-num.blue{color:#81d4fa}.fp-num.green{color:#a5d6a7}.fp-num.gold{color:#ffe082}
-.fp-label{font-size:12px;opacity:.85}
 
 /* 市场洞察排名卡片 */
 .rank-card{background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06)}

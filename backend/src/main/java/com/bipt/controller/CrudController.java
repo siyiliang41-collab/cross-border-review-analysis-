@@ -52,8 +52,8 @@ public class CrudController {
      * GET /api/crud/reviews/30096273310796453
      */
     @GetMapping("/reviews/{id}")
-    public Map<String, Object> getById(@PathVariable Long id) {
-        Review review = reviewService.getById(id);
+    public Map<String, Object> getById(@PathVariable String id) {
+        Review review = reviewService.getById(Long.parseLong(id));
         Map<String, Object> resp = new HashMap<>();
         resp.put("code", review != null ? 200 : 404);
         resp.put("data", review);
@@ -79,8 +79,8 @@ public class CrudController {
      * PUT /api/crud/reviews/30096273310796453
      */
     @PutMapping("/reviews/{id}")
-    public Map<String, Object> update(@PathVariable Long id, @RequestBody Review review) {
-        review.setEvaluationId(id);
+    public Map<String, Object> update(@PathVariable String id, @RequestBody Review review) {
+        review.setEvaluationId(Long.parseLong(id));
         boolean ok = reviewService.update(review);
         Map<String, Object> resp = new HashMap<>();
         resp.put("code", ok ? 200 : 500);
@@ -93,8 +93,8 @@ public class CrudController {
      * DELETE /api/crud/reviews/30096273310796453
      */
     @DeleteMapping("/reviews/{id}")
-    public Map<String, Object> delete(@PathVariable Long id) {
-        boolean ok = reviewService.delete(id);
+    public Map<String, Object> delete(@PathVariable String id) {
+        boolean ok = reviewService.delete(Long.parseLong(id));
         Map<String, Object> resp = new HashMap<>();
         resp.put("code", ok ? 200 : 500);
         resp.put("message", ok ? "删除成功" : "删除失败（可能记录不存在）");

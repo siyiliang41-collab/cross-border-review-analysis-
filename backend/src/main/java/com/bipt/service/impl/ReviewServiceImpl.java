@@ -9,9 +9,11 @@ import com.bipt.service.ReviewService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 /**
- * 评论数据业务实现 — 分页查询 + 关键词搜索 + 品类/国家筛选
- * 继承 ServiceImpl 获得 MyBatis Plus 内置的 save/update/remove/page 等方法
+ * 评论数据业务实现 — 手动分页（不依赖 MyBatis Plus 分页插件）
+ * 因 VM Maven 未正确下载 PaginationInnerInterceptor，改用 COUNT + LIMIT 手动分页
  *
  * @author 梁思怡
  * @date 2026-07-09
@@ -21,10 +23,28 @@ public class ReviewServiceImpl extends ServiceImpl<ReviewMapper, Review> impleme
 
     @Override
     public Page<Review> pageQuery(int page, int size, String keyword, String productId, String country) {
-        // 构建查询条件
+        // ① 先查总数（不带 LIMIT）
+        LambdaQueryWrapper<Review> countWrapper = buildWrapper(keyword, productId, country);
+        long total = baseMapper.selectCount(countWrapper);
+
+        // ② 再查当前页数据（带 LIMIT）
+        LambdaQueryWrapper<Review> dataWrapper = buildWrapper(keyword, productId, country);
+        int offset = (page - 1) * size;
+        dataWrapper.last("LIMIT " + offset + ", " + size);
+        List<Review> records = baseMapper.selectList(dataWrapper);
+
+        // ③ 组装分页结果
+        Page<Review> pageObj = new Page<>(page, size, total);
+        pageObj.setRecords(records);
+        return pageObj;
+    }
+
+    /**
+     * 构建公共查询条件 — 关键词 + 品类 + 国家 + 降序
+     */
+    private LambdaQueryWrapper<Review> buildWrapper(String keyword, String productId, String country) {
         LambdaQueryWrapper<Review> wrapper = new LambdaQueryWrapper<>();
 
-        // 关键词搜索：英文翻译文本 + 原始文本 模糊匹配
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w
                 .like(Review::getFeedbackTranslated, keyword)
@@ -32,23 +52,15 @@ public class ReviewServiceImpl extends ServiceImpl<ReviewMapper, Review> impleme
                 .like(Review::getFeedback, keyword)
             );
         }
-
-        // 品类筛选
         if (StringUtils.hasText(productId)) {
             wrapper.eq(Review::getProductId, productId);
         }
-
-        // 国家筛选
         if (StringUtils.hasText(country)) {
             wrapper.eq(Review::getBuyerCountry, country);
         }
 
-        // 按评价ID降序排列
         wrapper.orderByDesc(Review::getEvaluationId);
-
-        // 分页查询
-        Page<Review> pageObj = new Page<>(page, size);
-        return baseMapper.selectPage(pageObj, wrapper);
+        return wrapper;
     }
 
     @Override

@@ -3,13 +3,15 @@ import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { isAdmin } from '../utils/auth.js'
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api'
+const canEdit = isAdmin()
 
 // 商品 & 国家映射（复用 App.vue 中的映射表）
 const productNames = { '3256808363596774': '蓝牙耳机', '3256807406290815': '手机壳', '3256807087680846': 'LED小夜灯', '3256807145227935': '连衣裙', '3256805677493085': '油壶' }
-const countryNames = { 'ES': '西班牙', 'UA': '乌克兰', 'FR': '法国', 'US': '美国', 'KR': '韩国', 'GB': '英国', 'IT': '意大利', 'BR': '巴西', 'MX': '墨西哥', 'PL': '波兰', 'DE': '德国', 'RU': '俄罗斯', 'NL': '荷兰', 'TR': '土耳其', 'JP': '日本', 'IL': '以色列', 'CL': '智利', 'CA': '加拿大', 'AU': '澳大利亚', 'PT': '葡萄牙', 'BE': '比利时', 'SE': '瑞典', 'AT': '奥地利' }
-function getCountryName(code) { return countryNames[code] || code }
+const countryNames = {'AE':'阿联酋','AL':'阿尔巴尼亚','AO':'安哥拉','AR':'阿根廷','AT':'奥地利','AU':'澳大利亚','BD':'孟加拉国','BE':'比利时','BG':'保加利亚','BH':'巴林','BO':'玻利维亚','BR':'巴西','BY':'白俄罗斯','CA':'加拿大','CH':'瑞士','CL':'智利','CO':'哥伦比亚','CR':'哥斯达黎加','CV':'佛得角','CZ':'捷克','DE':'德国','DK':'丹麦','DO':'多米尼加','DZ':'阿尔及利亚','EC':'厄瓜多尔','EE':'爱沙尼亚','EG':'埃及','ES':'西班牙','ET':'埃塞俄比亚','EU':'欧盟','FI':'芬兰','FR':'法国','GB':'英国','GF':'法属圭亚那','GH':'加纳','GP':'瓜德罗普','GR':'希腊','HK':'中国香港','HN':'洪都拉斯','HR':'克罗地亚','HU':'匈牙利','ID':'印度尼西亚','IE':'爱尔兰','IL':'以色列','IN':'印度','IT':'意大利','JO':'约旦','JP':'日本','KE':'肯尼亚','KR':'韩国','KS':'科索沃','KW':'科威特','LB':'黎巴嫩','LK':'斯里兰卡','LT':'立陶宛','LU':'卢森堡','LV':'拉脱维亚','MA':'摩洛哥','MK':'北马其顿','MQ':'马提尼克','MT':'马耳他','MU':'毛里求斯','MX':'墨西哥','MY':'马来西亚','MZ':'莫桑比克','NG':'尼日利亚','NL':'荷兰','NO':'挪威','NP':'尼泊尔','NZ':'新西兰','OM':'阿曼','PA':'巴拿马','PE':'秘鲁','PF':'法属波利尼西亚','PK':'巴基斯坦','PL':'波兰','PT':'葡萄牙','PY':'巴拉圭','QA':'卡塔尔','RE':'留尼汪','RO':'罗马尼亚','RS':'塞尔维亚','RU':'俄罗斯','SA':'沙特','SC':'塞舌尔','SE':'瑞典','SG':'新加坡','SI':'斯洛文尼亚','SK':'斯洛伐克','SV':'萨尔瓦多','TH':'泰国','TN':'突尼斯','TR':'土耳其','TZ':'坦桑尼亚','UA':'乌克兰','UG':'乌干达','US':'美国','UY':'乌拉圭','VE':'委内瑞拉','VN':'越南','ZA':'南非'}
+function getCountryName(code){ return countryNames[code] || code }
 
 // ===== 搜索条件 =====
 const searchForm = reactive({ keyword: '', productId: '', country: '' })
@@ -142,7 +144,8 @@ onMounted(() => loadData())
     </el-select>
     <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
     <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-    <el-button type="success" :icon="Plus" @click="handleAdd" style="margin-left:auto">新增评论</el-button>
+    <el-button v-if="canEdit" type="success" :icon="Plus" @click="handleAdd" style="margin-left:auto">新增评论</el-button>
+    <span v-else style="margin-left:auto;color:#999;font-size:13px">仅管理员可新增/编辑/删除</span>
   </div>
 
   <!-- 数据表格 -->
@@ -167,8 +170,8 @@ onMounted(() => loadData())
     <el-table-column prop="logistics" label="物流" width="140" show-overflow-tooltip />
     <el-table-column label="操作" width="150" fixed="right" align="center">
       <template #default="{row}">
-        <el-button type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-        <el-button type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+        <el-button v-if="canEdit" type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+        <el-button v-if="canEdit" type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
       </template>
     </el-table-column>
   </el-table>
