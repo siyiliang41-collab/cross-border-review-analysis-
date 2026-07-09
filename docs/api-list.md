@@ -61,7 +61,20 @@
 
 一次返回7组数据：评分排名、TOP3 最佳市场、TOP3 优势特征、TOP3 痛点特征、推荐 SKU、推荐物流、好评率。
 
-## 八、返回格式
+## 八、数据管理（CRUD）— v5.0 新增
+
+| 方法 | 端点 | 说明 |
+|---|---|---|
+| GET | `/api/crud/reviews?page=1&size=20&keyword=&productId=&country=` | 分页查询 + 关键词搜索 + 品类/国家筛选 |
+| GET | `/api/crud/reviews/{id}` | 按评价ID查单条 |
+| POST | `/api/crud/reviews` | 新增评论（JSON body） |
+| PUT | `/api/crud/reviews/{id}` | 编辑评论 |
+| DELETE | `/api/crud/reviews/{id}` | 删除评论 |
+| GET | `/api/crud/stats` | 统计数据（总评论数） |
+
+> 数据源表：`bipt_review`（22字段，19,271 条评论），MVC 四层分层：Controller → Service → Mapper → Entity
+
+## 九、返回格式
 
 全部接口返回 JSON，示例：
 

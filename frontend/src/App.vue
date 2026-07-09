@@ -1,7 +1,12 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import * as echarts from 'echarts'
+import DataManage from './views/DataManage.vue'
+
+const router = useRouter()
+const route = useRoute()
 
 const API = import.meta.env.VITE_API_BASE_URL || '/api'
 const selectedPid = ref('3256805677493085')
@@ -16,6 +21,7 @@ const menus = [
   {key:'product',label:'产品洞察'},
   {key:'decision',label:'市场洞察'},
   {key:'quality',label:'数据质量'},
+  {key:'data-manage',label:'数据管理'},
 ]
 
 const productNames = {'3256808363596774':'蓝牙耳机','3256807406290815':'手机壳','3256807087680846':'LED小夜灯','3256807145227935':'连衣裙','3256805677493085':'油壶'}
@@ -395,10 +401,25 @@ function renderCharts(){
 
 watch(selectedPid,()=>{selectedCountry.value='';loadAll()})
 watch(activeMenu,(tab)=>{
+  // 同步路由
+  const routeMap = { overview:'/overview', product:'/product', decision:'/market', quality:'/quality', 'data-manage':'/data-manage' }
+  if (routeMap[tab] && route.path !== routeMap[tab]) router.push(routeMap[tab])
   if(tab==='quality'){loadQuality().catch(e=>console.error('[质量报告加载失败]',e))}
-  nextTick(()=>renderCharts())
+  if(tab!=='data-manage') nextTick(()=>renderCharts())
 })
-onMounted(()=>loadAll())
+// 路由 → activeMenu 反向同步（浏览器前进/后退）
+watch(()=>route.path, (path)=>{
+  const tabMap = {'/overview':'overview','/product':'product','/market':'decision','/quality':'quality','/data-manage':'data-manage'}
+  const tab = tabMap[path]
+  if (tab && activeMenu.value !== tab) activeMenu.value = tab
+})
+// 初始化：从 URL hash 恢复当前 Tab
+onMounted(()=>{
+  const tabMap = {'/overview':'overview','/product':'product','/market':'decision','/quality':'quality','/data-manage':'data-manage'}
+  const tab = tabMap[route.path]
+  if (tab) activeMenu.value = tab
+  loadAll()
+})
 
 async function loadQuality(){
   if(qualityReport.value)return
@@ -551,6 +572,11 @@ async function loadQuality(){
           </div>
           <div v-else style="text-align:center;padding:30px;color:#999">上方选择国家后，此处展示该国的完整分析</div>
         </div>
+      </div>
+
+      <!-- 数据管理（CRUD） -->
+      <div v-show="activeMenu==='data-manage'">
+        <DataManage />
       </div>
 
       <!-- 数据质量报告 -->
