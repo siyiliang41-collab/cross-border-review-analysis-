@@ -117,7 +117,7 @@ function buildInsightText(ci){
   }
   if(ci.topSku&&ci.topSku.length>0){
     const skus=ci.topSku.slice(0,2).map(s=>getSkuName(s.sku_info))
-    text+=`建议重点备货${skus.join('和')}，维持高分物流渠道。`
+    text+=`建议重点备货${skus.join('和')}，优先选择速卖通标准/顺丰国际等高评分物流渠道。`
   }
   return text
 }
@@ -310,7 +310,7 @@ async function loadQuality(){
     <div class="sb-logo">BIPT</div>
     <nav class="sb-nav">
       <a v-for="item in menus" :key="item.key" :class="{active:activeMenu===item.key}" @click="activeMenu=item.key">
-        <span class="nav-icon">{{ item.icon }}</span><span class="nav-label">{{ item.label }}</span>
+        <span class="nav-label">{{ item.label }}</span>
       </a>
     </nav>
     <div class="sb-footer">v1.0</div>
@@ -321,12 +321,12 @@ async function loadQuality(){
     <!-- 顶栏 -->
     <header class="topbar">
       <div class="tb-left">
-        <span class="tb-logo-icon">🌐</span>
+        <span class="tb-logo-icon">BIPT</span>
         <span class="tb-title">跨境电商评论情感挖掘与选品决策支持系统</span>
       </div>
       <div class="tb-right">
         <select v-model="selectedPid" class="tb-sel"><option v-for="p in productList" :key="p.id" :value="p.id">{{ p.name }}</option></select>
-        <span class="tb-avatar">👤</span>
+        <span class="tb-avatar"></span>
       </div>
     </header>
 
@@ -336,17 +336,17 @@ async function loadQuality(){
       <!-- 数据概览 -->
       <div v-show="activeMenu==='overview'">
         <div class="card-row-3">
-          <div class="card"><div class="ctitle">📈 情感分析趋势</div><div id="ch1" class="chart"></div></div>
-          <div class="card"><div class="ctitle">🎯 选品决策支持评分</div><div id="ch2" class="chart"></div></div>
-          <div class="card"><div class="ctitle">📊 选品推荐排名</div><div id="ch4" class="chart"></div></div>
+          <div class="card"><div class="ctitle">情感分析趋势</div><div id="ch1" class="chart"></div></div>
+          <div class="card"><div class="ctitle">选品决策支持评分</div><div id="ch2" class="chart"></div></div>
+          <div class="card"><div class="ctitle">选品推荐排名</div><div id="ch4" class="chart"></div></div>
         </div>
-        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">🗺 国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
-        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">🌍 全球市场格局（KMeans 聚类）</div>
+        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">国家×品类适配度矩阵</div><div id="ch3" class="chart" style="height:340px"></div></div></div>
+        <div style="margin-bottom:16px"><div class="card"><div class="ctitle">全球市场格局（KMeans 聚类）</div>
           <img src="/charts/kmeans_country_clusters.png" style="width:100%;height:auto;border-radius:8px;margin-top:4px" alt="KMeans国家分群" />
         </div></div>
         <div class="card-row-2">
-          <div class="card"><div class="ctitle">💚 情感正/中/负面率对比</div><div id="ch-ov-stack" class="chart"></div></div>
-          <div class="card"><div class="ctitle">✅ 数据来源与分析方法</div>
+          <div class="card"><div class="ctitle">情感正/中/负面率对比</div><div id="ch-ov-stack" class="chart"></div></div>
+          <div class="card"><div class="ctitle">数据来源与分析方法</div>
             <div style="padding:20px;line-height:2.2;color:#333;font-size:14px;text-align:center">
               <b>数据源：</b>速卖通5品类用户真实评论（CSV 19,271条）<br>
               <b>分析模型：</b>VADER情感打分 + ABSA特征抽取 + LDA主题聚类<br>
@@ -360,12 +360,12 @@ async function loadQuality(){
       <!-- 产品洞察 -->
       <div v-show="activeMenu==='product'">
         <div class="card-row-2" style="margin-bottom:12px">
-          <div class="card"><div class="ctitle">🔍 {{ productNames[selectedPid] || '产品' }}特征ABSA分析（好评 vs 差评）</div><div id="ch-pa" class="chart"></div></div>
-          <div class="card"><div class="ctitle">📈 {{ productNames[selectedPid] || '产品' }}月度评分趋势</div><div id="ch-pt" class="chart"></div></div>
+          <div class="card"><div class="ctitle">{{ productNames[selectedPid] || '产品' }}特征ABSA分析（好评 vs 差评）</div><div id="ch-pa" class="chart"></div></div>
+          <div class="card"><div class="ctitle">{{ productNames[selectedPid] || '产品' }}月度评分趋势</div><div id="ch-pt" class="chart"></div></div>
         </div>
         <div class="card-row-2">
-          <div class="card"><div class="ctitle">🍩 {{ productNames[selectedPid] || '产品' }}情感分布</div><div id="ch-pd" class="chart"></div></div>
-          <div class="card"><div class="ctitle">💡 产品洞察说明</div>
+          <div class="card"><div class="ctitle">{{ productNames[selectedPid] || '产品' }}情感分布</div><div id="ch-pd" class="chart"></div></div>
+          <div class="card"><div class="ctitle">产品洞察说明</div>
             <div style="padding:24px 20px;line-height:2.4;color:#222;font-size:15px;text-align:center">
               <b>以上三图为「{{ productNames[selectedPid] }}」的单品深度分析：</b><br>
               <b>左上</b> — 特征ABSA：消费者夸什么、骂什么<br>
@@ -380,7 +380,7 @@ async function loadQuality(){
       <!-- 市场洞察 -->
       <div v-show="activeMenu==='decision'">
         <div class="info-banner" style="margin-bottom:12px;padding:10px 16px;background:#f0f7ff;border-radius:8px;color:#1565c0;font-size:13px">
-          💡 以下为「{{ productNames[selectedPid] }}」品类的 TOP5 推荐市场，基于星评/评论规模/情感均分综合排序
+          以下为「{{ productNames[selectedPid] }}」品类的 TOP5 推荐市场，基于星评/评论规模/情感均分综合排序
         </div>
         <div class="market-rank" v-for="(c,i) in marketRanking" :key="c.country" style="margin-bottom:10px">
           <div class="rank-card" :style="{borderLeft:'4px solid '+['#1677FF','#F53F3F','#00B42A','#FF7D00','#722ED1'][i]}">
@@ -390,7 +390,7 @@ async function loadQuality(){
               <span class="mr-stars">⭐{{ c.avgStar }}</span>
               <span class="mr-reviews">{{ c.reviewCount }}条评论</span>
               <span :style="{color:c.trendDir.indexOf('↑')>=0?'#00B42A':'#F53F3F',fontWeight:'bold',marginLeft:'8px',fontSize:'14px'}">{{ c.trendDir }}</span>
-              <span v-if="c.trendScores!=='--'" style="font-size:12px;color:#555;marginLeft:4px">{{ c.trendScores }}</span>
+              <span v-if="c.trendScores!=='--'" style="font-size:15px;color:#333;marginLeft:6px;font-weight:bold">{{ c.trendScores }}</span>
             </div>
             <div class="mr-body">
               <div class="mr-cols">
@@ -416,11 +416,11 @@ async function loadQuality(){
         </div>
         <!-- 国家详情（选中国家后展开） -->
         <div style="margin-top:16px;padding:14px 18px;background:#fafafa;border-radius:10px">
-          <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">🔍 选择国家查看深度洞察</div>
+          <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:10px">选择国家查看深度洞察</div>
           <select v-model="selectedCountry" class="tb-sel" style="color:#333;background:#fff;border:1px solid #ddd;padding:8px 16px;border-radius:6px;font-size:14px;width:200px;margin-bottom:12px">
             <option value="">— 选择国家（全部） —</option><option v-for="(name,code) in countryNames" :key="code" :value="code">{{ name }} ({{ code }})</option>
           </select>
-          <div v-if="countryDetail&&countryDetail.noData" style="text-align:center;padding:30px;color:#e65100;font-size:14px">⚠️ {{ countryDetail.cnName }} 目前在「{{ countryDetail.name }}」品类暂无评论数据</div>
+          <div v-if="countryDetail&&countryDetail.noData" style="text-align:center;padding:30px;color:#e65100;font-size:14px">{{ countryDetail.cnName }} 目前在「{{ countryDetail.name }}」品类暂无评论数据</div>
           <div v-else-if="countryDetail" style="margin-top:10px">
             <div class="country-card" style="margin-bottom:10px">
               <div class="cc-hd"><span class="cc-flag">{{ countryDetail.cnName }}</span> 市场深度洞察 — {{ countryDetail.name }}</div>
@@ -431,12 +431,12 @@ async function loadQuality(){
                 <div class="cc-stat"><span class="cc-num" style="font-size:16px">{{ countryDetail.topSku[0] ? getSkuName(countryDetail.topSku[0].sku_info) : '暂无数据' }}</span><span class="cc-lbl">推荐属性</span></div>
               </div>
               <div class="cc-insight">
-                💡 {{ countryDetail.strengths.length ? '消费者认可'+countryDetail.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}{{ countryDetail.weaknesses.length ? '主要不满集中在'+countryDetail.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}建议备货{{ countryDetail.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}，维持高分物流渠道。
+                {{ countryDetail.strengths.length ? '消费者认可'+countryDetail.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}{{ countryDetail.weaknesses.length ? '主要不满集中在'+countryDetail.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}建议备货{{ countryDetail.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}，优先选择速卖通标准/顺丰国际等高评分物流渠道。
               </div>
             </div>
             <div class="card-row-2">
-              <div class="card"><div class="ctitle">📈 评分趋势</div><div id="ch-d-trend" class="chart"></div></div>
-              <div class="card"><div class="ctitle">🛒 SKU偏好</div><div id="ch-d-sku" class="chart"></div></div>
+              <div class="card"><div class="ctitle">评分趋势</div><div id="ch-d-trend" class="chart"></div></div>
+              <div class="card"><div class="ctitle">SKU偏好</div><div id="ch-d-sku" class="chart"></div></div>
             </div>
           </div>
           <div v-else style="text-align:center;padding:30px;color:#999">上方选择国家后，此处展示该国的完整分析</div>
@@ -446,7 +446,7 @@ async function loadQuality(){
       <!-- 数据质量报告 -->
       <div v-show="activeMenu==='quality'">
         <div class="card-row-2" style="margin-bottom:12px">
-          <div class="card"><div class="ctitle">📦 数据资产概览</div>
+          <div class="card"><div class="ctitle">数据资产概览</div>
             <div class="qa-grid" v-if="qualityReport">
               <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.product_count }}</span><span class="qa-lbl">商品品类</span></div>
               <div class="qa-item"><span class="qa-num">{{ qualityReport.overview.country_count }}</span><span class="qa-lbl">TOP国家覆盖</span></div>
@@ -455,7 +455,7 @@ async function loadQuality(){
             </div>
             <div v-else style="text-align:center;padding:40px;color:#999">加载中...</div>
           </div>
-          <div class="card"><div class="ctitle">🧹 数据清洗统计</div>
+          <div class="card"><div class="ctitle">数据清洗统计</div>
             <div class="qa-grid" v-if="qualityReport">
               <div class="qa-item"><span class="qa-num">{{ qualityReport.cleaning.rawRows.toLocaleString() }}</span><span class="qa-lbl">CSV原始行数</span></div>
               <div class="qa-item"><span class="qa-num" style="color:#2e7d32">{{ qualityReport.cleaning.cleanedRows.toLocaleString() }}</span><span class="qa-lbl">DWD清洗后</span></div>
@@ -466,13 +466,13 @@ async function loadQuality(){
           </div>
         </div>
         <div class="card-row-2" style="margin-bottom:12px">
-          <div class="card"><div class="ctitle">📈 评论月度分布</div>
+          <div class="card"><div class="ctitle">评论月度分布</div>
             <div class="qa-table" v-if="qualityReport">
               <table><thead><tr><th>月份</th><th>评论数</th><th>均分</th></tr></thead>
               <tbody><tr v-for="r in qualityReport.monthlyDetail" :key="r.month"><td>{{ r.month }}</td><td>{{ r.review_count.toLocaleString() }}</td><td>{{ r.avg_star }}</td></tr></tbody></table>
             </div>
           </div>
-          <div class="card"><div class="ctitle">🌍 国家数据覆盖 TOP10</div>
+          <div class="card"><div class="ctitle">国家数据覆盖 TOP10</div>
             <div class="qa-table" v-if="qualityReport">
               <table><thead><tr><th>国家</th><th>评论数</th><th>覆盖率</th></tr></thead>
               <tbody><tr v-for="r in qualityReport.topCountries" :key="r.buyer_country"><td>{{ getCountryName(r.buyer_country) }}</td><td>{{ r.review_count.toLocaleString() }}</td><td>{{ r.coverage_rate }}%</td></tr></tbody></table>
@@ -480,20 +480,20 @@ async function loadQuality(){
           </div>
         </div>
         <div class="card-row-2">
-          <div class="card"><div class="ctitle">🏷 各品类数据画像</div>
+          <div class="card"><div class="ctitle">各品类数据画像</div>
             <div class="qa-table" v-if="qualityReport">
               <table><thead><tr><th>商品</th><th>评论数</th><th>均分</th><th>好评率</th><th>推荐指数</th></tr></thead>
               <tbody><tr v-for="r in qualityReport.productDetail" :key="r.product_id"><td>{{ productNames[r.product_id]||r.product_id }}</td><td>{{ r.total_reviews.toLocaleString() }}</td><td>{{ r.avg_star }}</td><td>{{ r.pos_rate }}%</td><td>{{ r.recommendation_score }}</td></tr></tbody></table>
             </div>
           </div>
-          <div class="card"><div class="ctitle">✅ 数据质量结论</div>
+          <div class="card"><div class="ctitle">数据质量结论</div>
             <div style="padding:20px;line-height:2.2;color:#333;font-size:14px" v-if="qualityReport">
-              ✅ 覆盖 <b>{{ qualityReport.overview.country_count }}</b> 个国家，评论总量 <b>{{ qualityReport.overview.total_reviews.toLocaleString() }}</b> 条<br>
-              ✅ 时间跨度 <b>{{ qualityReport.timeSpan.months }}</b> 个月（{{ qualityReport.timeSpan.earliest }} ~ {{ qualityReport.timeSpan.latest }}）<br>
-              ✅ CSV 原始 <b>{{ qualityReport.cleaning.rawRows.toLocaleString() }}</b> 行，清洗后有效数据 <b>{{ qualityReport.cleaning.cleanedRows.toLocaleString() }}</b> 条<br>
-              ✅ 脏数据过滤率仅 <b>{{ qualityReport.cleaning.removalRate }}</b>，数据源质量良好<br>
-              ✅ 第一大市场：<b>{{ getCountryName(qualityReport.topCountries[0].buyer_country) }}</b>（{{ qualityReport.topCountries[0].review_count.toLocaleString() }}条，占比{{ qualityReport.topCountries[0].coverage_rate }}%）<br>
-              ✅ 评论旺季：2025-11月 ~ 12月（月均2,700+条），符合跨境电商节庆规律
+              覆盖 <b>{{ qualityReport.overview.country_count }}</b> 个国家，评论总量 <b>{{ qualityReport.overview.total_reviews.toLocaleString() }}</b> 条<br>
+              时间跨度 <b>{{ qualityReport.timeSpan.months }}</b> 个月（{{ qualityReport.timeSpan.earliest }} ~ {{ qualityReport.timeSpan.latest }}）<br>
+              CSV 原始 <b>{{ qualityReport.cleaning.rawRows.toLocaleString() }}</b> 行，清洗后有效数据 <b>{{ qualityReport.cleaning.cleanedRows.toLocaleString() }}</b> 条<br>
+              脏数据过滤率仅 <b>{{ qualityReport.cleaning.removalRate }}</b>，数据源质量良好<br>
+              第一大市场：<b>{{ getCountryName(qualityReport.topCountries[0].buyer_country) }}</b>（{{ qualityReport.topCountries[0].review_count.toLocaleString() }}条，占比{{ qualityReport.topCountries[0].coverage_rate }}%）<br>
+              评论旺季：2025-11月 ~ 12月（月均2,700+条），符合跨境电商节庆规律
             </div>
           </div>
         </div>
