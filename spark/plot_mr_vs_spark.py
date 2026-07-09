@@ -13,14 +13,14 @@ import numpy as np
 plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
-# 实际跑出来的数据
+# 同台 YARN 竞技数据（2026-07-09 实测）
 datasets = ['1,000 条', '10,000 条', '19,271 条']
-mr_times   = [22.162, 24.941, 23.860]
-spark_times = [4.819, 0.968, 1.362]
-speedup    = [22.162/4.819, 24.941/0.968, 23.860/1.362]
+mr_times   = [19.9, 20.8, 21.0]
+spark_times = [2.2, 1.7, 1.7]
+speedup    = [19.9/2.2, 20.8/1.7, 21.0/1.7]
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
-fig.suptitle('MR (YARN) vs Spark (local[*]) — WordCount 性能对比', fontsize=16, fontweight='bold')
+fig.suptitle('MR vs Spark (同台 YARN 竞技) — WordCount 性能对比', fontsize=16, fontweight='bold')
 
 # 左图：并排柱状图
 x = np.arange(len(datasets))
