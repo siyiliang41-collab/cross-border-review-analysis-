@@ -342,7 +342,7 @@ function renderKMeansChart(km) {
       textStyle: { color: '#555', fontSize: 12 },
       top: 0, itemWidth: 12, itemHeight: 12,
     },
-    grid: { left: 55, right: 20, top: 40, bottom: 45 },
+    grid: { left: 55, right: 20, top: 55, bottom: 45 },
     xAxis: {
       type: 'value', name: 'PC1 (' + pca[0] + '%)',
       nameTextStyle: { color: '#555', fontSize: 12, fontWeight: 'bold' },
@@ -425,7 +425,6 @@ async function loadQuality(){
     <!-- 顶栏 -->
     <header class="topbar">
       <div class="tb-left">
-        <span class="tb-logo-icon">BIPT</span>
         <span class="tb-title">跨境电商评论情感挖掘与选品决策支持系统</span>
       </div>
       <div class="tb-right">
@@ -518,7 +517,7 @@ async function loadQuality(){
                 <div class="mr-col">
                   <div class="mr-label">注意风险</div>
                   <div v-if="c.weaknesses.length" class="mr-val">{{ c.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、') }}</div>
-                  <div v-else-if="c._ldaFallback" class="mr-val" style="color:#e65100">*{{ c._ldaFallback.join('、') }}</div>
+                  <div v-else-if="c._ldaFallback" class="mr-val" style="color:#e65100">{{ c._ldaFallback.join('、') }}<span style="font-size:11px;color:#999;font-weight:400;margin-left:4px">（全品类推测风险）</span></div>
                   <div v-else class="mr-val-dim">暂无显著负面</div>
                 </div>
               </div>
@@ -539,7 +538,7 @@ async function loadQuality(){
                 <div class="cc-stat"><span class="cc-num blue">{{ countryDetail.avgStar }}</span><span class="cc-lbl">平均星评</span></div>
                 <div class="cc-stat"><span class="cc-num green">{{ countryDetail.reviewCount }}</span><span class="cc-lbl">评论数</span></div>
                 <div class="cc-stat"><span :class="'cc-num '+(countryDetail.trendDir.indexOf('↑')>=0?'green':'red')">{{ countryDetail.trendDir }}</span><span class="cc-lbl">评分趋势 {{ countryDetail.trendScores }}</span></div>
-                <div class="cc-stat"><span class="cc-num" style="font-size:16px">{{ countryDetail.topSku[0] ? getSkuName(countryDetail.topSku[0].sku_info) : '暂无数据' }}</span><span class="cc-lbl">推荐属性</span></div>
+                <div class="cc-stat"><span class="cc-num">{{ countryDetail.topSku[0] ? getSkuName(countryDetail.topSku[0].sku_info) : '暂无数据' }}</span><span class="cc-lbl">推荐属性</span></div>
               </div>
               <div class="cc-insight">
                 {{ countryDetail.strengths.length ? '消费者认可'+countryDetail.strengths.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}{{ countryDetail.weaknesses.length ? '主要不满集中在'+countryDetail.weaknesses.slice(0,2).map(s=>getFeatureName(s.feature)).join('、')+'。' : '' }}建议备货{{ countryDetail.topSku.slice(0,2).map(s=>getSkuName(s.sku_info)).join('、') }}，优先选择速卖通标准/顺丰国际等高评分物流渠道。
