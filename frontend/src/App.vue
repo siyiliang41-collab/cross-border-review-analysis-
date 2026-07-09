@@ -3,7 +3,7 @@ import { ref, watch, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 
-const API = import.meta.env.VITE_API_BASE_URL || 'http://192.168.229.101:8080/api'
+const API = import.meta.env.VITE_API_BASE_URL || '/api'
 const selectedPid = ref('3256805677493085')
 const selectedCountry = ref('')
 const activeMenu = ref('overview')
@@ -141,6 +141,7 @@ const qualityReport = ref(null)
 const liveMetrics = ref({totalReviews:0,posRate:0,todayRec:''})
 
 async function loadAll(){
+  try{
   const pid=selectedPid.value
 
   const [matrix,logistics,sentiment,scorecard,feats,trend,sku]=await Promise.all([
@@ -203,6 +204,9 @@ async function loadAll(){
   allData.value={matrix:matrix.data,trend:trend.data,logistics:logistics.data,
     sentiment:sentiment.data,scorecard:scorecard.data,feats:feats.data,sku:sku.data,ranking:details}
   renderCharts()
+  }catch(e){
+    console.error('[loadAll失败]', e)
+  }
 }
 
 const countryDetail=ref(null)  // 选中国家的深度洞察
