@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """情感挖掘 + 选品评分卡 - 纯PySpark"""
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col, avg, count, sum as spark_sum
-from pyspark.sql.functions import round as spark_round, get_json_object, lit
+from pyspark.sql.functions import udf, col
+from pyspark.sql.functions import get_json_object
 from pyspark.sql.types import StringType, DoubleType
 import json
 
@@ -36,8 +36,9 @@ def analyze_sentiment(text):
 sentiment_udf = udf(analyze_sentiment, StringType())
 
 # ---- 步骤1: 情感标注 ----
-print("\n[1/4] 对16,972条评论进行VADER情感分析...")
 df = spark.table("dwd_reviews")
+dwd_count = df.count()
+print(f"\n[1/4] 对{dwd_count:,}条评论进行VADER情感分析...")
 sent_df = df.withColumn("sentiment_json", sentiment_udf(col("feedback_translated")))
 sent_df = sent_df.select(
     "*",

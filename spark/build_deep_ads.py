@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""深度分析 ADS 表构建 — 5张新表 + 导出MySQL"""
+"""深度分析 ADS 表构建 — 5张新表 + 导出MySQL
+   生成: ads_feature_country_product / ads_country_product_matrix / ads_sku_country_pref /
+         ads_country_monthly_trend / ads_feature_time_analysis
+   作者：梁思怡  日期：2026-06-25
+"""
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 文件名：kmeans_country_cluster.py
-功能：KMeans 国家分群 — 135个国家按消费行为聚成3~4类市场画像
+功能：KMeans 国家分群 — 102个国家按消费行为聚成4类市场画像
       补全课程核心阶段要求的 ML 分类算法
 作者：梁思怡
 创建日期：2026-07-09
 """
 import pandas as pd
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA

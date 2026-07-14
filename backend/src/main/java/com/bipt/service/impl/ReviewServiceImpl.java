@@ -9,34 +9,20 @@ import com.bipt.service.ReviewService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
-
 /**
- * 评论数据业务实现 — 手动分页（不依赖 MyBatis Plus 分页插件）
- * 因 VM Maven 未正确下载 PaginationInnerInterceptor，改用 COUNT + LIMIT 手动分页
+ * 评论数据业务实现 — 使用 MyBatis Plus 分页插件标准分页
+ * PaginationInnerInterceptor 已在 MyBatisPlusConfig 中注册（MySQL 方言）
  *
  * @author 梁思怡
- * @date 2026-07-09
+ * @date 2026-07-09  更新：2026-07-14 切回标准 selectPage（分页插件已就绪）
  */
 @Service
 public class ReviewServiceImpl extends ServiceImpl<ReviewMapper, Review> implements ReviewService {
 
     @Override
     public Page<Review> pageQuery(int page, int size, String keyword, String productId, String country) {
-        // ① 先查总数（不带 LIMIT）
-        LambdaQueryWrapper<Review> countWrapper = buildWrapper(keyword, productId, country);
-        long total = baseMapper.selectCount(countWrapper);
-
-        // ② 再查当前页数据（带 LIMIT）
-        LambdaQueryWrapper<Review> dataWrapper = buildWrapper(keyword, productId, country);
-        int offset = (page - 1) * size;
-        dataWrapper.last("LIMIT " + offset + ", " + size);
-        List<Review> records = baseMapper.selectList(dataWrapper);
-
-        // ③ 组装分页结果
-        Page<Review> pageObj = new Page<>(page, size, total);
-        pageObj.setRecords(records);
-        return pageObj;
+        LambdaQueryWrapper<Review> wrapper = buildWrapper(keyword, productId, country);
+        return baseMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
     /**
