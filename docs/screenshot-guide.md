@@ -1,7 +1,7 @@
 # 答辩截图与证据清单
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> v4.0 | 2026-07-09
+> v5.0 | 2026-07-14
 
 ---
 
@@ -66,10 +66,11 @@
 
 | 文件名 | 内容 | 用途 |
 |---|---|---|
-| `前端-数据概览Tab` | 趋势折线/雷达/热力/KMeans散点/选品排名/情感堆叠 | PPT 可视化 |
+| `前端-数据概览Tab` | 趋势折线/雷达/热力/KMeans矢量散点/选品排名/情感堆叠 | PPT 可视化 |
 | `前端-产品洞察Tab` | ABSA特征/月度趋势/情感环形图（跟选品切换） | PPT 可视化 |
 | `前端-市场洞察Tab` | TOP5排名卡片+国家详情+预测线+LDA兜底风险 | PPT 可视化 |
 | `前端-数据质量Tab` | 概览/清洗/月度/国家/品类/结论 | PPT 可视化 |
+| `前端-数据管理Tab` | 评论增删改查/分页/搜索/登录认证 | PPT 可视化 |
 | `F12 Console 无报错` | 控制台截图，证明全链路无异常 | PPT 联调成功 |
 
 ## 八、部署验证
@@ -86,9 +87,10 @@
 |---|---|
 | YARN Web UI (`http://192.168.229.103:8088`) | 3个 Active Nodes + Total Memory 24GB |
 | HDFS NameNode Web UI (`http://192.168.229.101:9870`) | Active NameNode + 3 DataNodes |
-| 前端 4 Tab 逐张截图 | 填上面第七节 |
+| 前端 5 Tab 逐张截图 | 数据概览/产品洞察/市场洞察/数据质量/数据管理 |
 | ZooKeeper 三节点 status | Leader/Follower 状态 |
-| KMeans ECharts 矢量图 | 前端 ch-km 散点图，代替 PNG |
+| 登录/注册页面 | AuthPage 界面截图 |
+| 数据管理 CRUD 操作 | 增删改查弹窗截图 |
 
 ## 十、所有图表产物
 
@@ -98,5 +100,4 @@
 | `charts/mr_vs_spark.png` | MR vs Spark 对比图 |
 | `charts/lda_topics.png` | LDA 5主题词频 + 痛点分布 |
 | `charts/kmeans_country_clusters.png` | KMeans PCA散点 + 4类市场卡片 |
-| `charts/time_series_forecast.png` | 时序预测回归线 + 菱形预测点 |
-| `charts/consistency_analysis.png` | 评分与情感一致性散点图 |
+| `charts/consistency_analysis.png` | 评分与情感一致性分析三图 |

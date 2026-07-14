@@ -1,7 +1,7 @@
 # 项目运行操作手册
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> v4.0 | 最后更新：2026-07-09
+> v5.0 | 最后更新：2026-07-14
 
 ---
 
@@ -65,13 +65,14 @@ systemctl start mysqld
 mysql -u root -p123456 -e "USE bipt_project; SHOW TABLES;"
 ```
 
-应该看到 13 张 `ads_*` 开头的表：
+应该看到 15 张表（13 张 `ads_*` + `bipt_review` + `users`）：
 
 ```
 ads_country_monthly_trend
 ads_country_product_matrix
 ads_country_top15
 ads_feature_country_product
+ads_feature_time_analysis
 ads_image_followup
 ads_logistics
 ads_monthly_trend
@@ -80,7 +81,8 @@ ads_product_scorecard
 ads_sentiment_product
 ads_sku_analysis
 ads_sku_country_pref
-...
+bipt_review
+users
 ```
 
 ### 2.4 验证表里有数据

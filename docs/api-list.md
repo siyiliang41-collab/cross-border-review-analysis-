@@ -1,13 +1,13 @@
 # API 接口清单
 
 > 跨境电商评论情感挖掘与选品决策支持系统 — 昌平champion盛世  
-> v4.0 | SpringBoot 3.2 | 地址：`http://192.168.229.101:8080/api`
+> v5.0 | SpringBoot 3.2 | 25 个端点 | 地址：`http://192.168.229.101:8080/api`
 
 访问方式：局域网 `http://192.168.229.101:8080` 或公网 `https://squint-owl-worshiper.ngrok-free.dev`
 
 ---
 
-## 一、概览
+## 一、概览（2 个）
 
 | 方法 | 端点 | 说明 | 数据源表 |
 |---|---|---|---|
@@ -83,7 +83,7 @@
 
 > 数据源表：`bipt_review`（22字段，19,271 条评论），MVC 四层分层：Controller → Service → Mapper → Entity
 
-## 九、返回格式
+## 十、返回格式
 
 全部接口返回 JSON，示例：
 
