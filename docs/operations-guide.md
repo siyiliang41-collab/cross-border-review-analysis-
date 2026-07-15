@@ -62,7 +62,7 @@ systemctl start mysqld
 ### 2.3 检查数据是否在
 
 ```bash
-mysql -u root -p123456 -e "USE bipt_project; SHOW TABLES;"
+mysql -u root -p'Root@123456' -e "USE bipt_project; SHOW TABLES;"
 ```
 
 应该看到 15 张表（13 张 `ads_*` + `bipt_review` + `users`）：
@@ -88,7 +88,7 @@ users
 ### 2.4 验证表里有数据
 
 ```bash
-mysql -u root -p123456 -e "USE bipt_project; SELECT COUNT(*) AS cnt FROM ads_product_rating;"
+mysql -u root -p'Root@123456' -e "USE bipt_project; SELECT COUNT(*) AS cnt FROM ads_product_rating;"
 ```
 
 应返回 `5`（5个商品）。
@@ -662,7 +662,7 @@ systemctl status mysqld
 验证数据在：
 
 ```bash
-mysql -u root -p123456 -e "USE bipt_project; SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='bipt_project';"
+mysql -u root -p'Root@123456' -e "USE bipt_project; SELECT COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema='bipt_project';"
 ```
 
 ### 8.7 启动后端 SpringBoot
